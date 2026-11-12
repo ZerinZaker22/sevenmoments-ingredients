@@ -1,10 +1,6 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const { cleanBreakdown } = require('./lib/guard');
+import { cleanBreakdown } from '../../lib/guard.js';
 
-const PORT = process.env.PORT || 3000;
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const MODEL = 'gpt-4o-mini';
 const MAX_CHARS = 3000;
 const MAX_INGREDIENTS = 100;
 const MAX_PRODUCT_NAME = 100;
@@ -45,28 +41,10 @@ Leave the list empty if none apply.
 Respond only with JSON in this shape:
 {"intro":"...","groups":[{"label":"...","ingredients":["..."],"explanation":"..."}],"worth_knowing":["..."]}`;
 
-const INDEX_PATH = path.join(__dirname, 'public', 'index.html');
-
-function sendJson(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(body));
-}
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let size = 0;
-    const chunks = [];
-    req.on('data', (chunk) => {
-      size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
-        reject(new Error('too_large'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
   });
 }
 
@@ -78,11 +56,11 @@ function parseIngredients(text) {
     .slice(0, MAX_INGREDIENTS);
 }
 
-async function requestBreakdown(ingredients, productName) {
+async function requestBreakdown(apiKey, ingredients, productName) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -135,26 +113,30 @@ function sampleBreakdown(ingredients) {
   };
 }
 
-async function handleDecode(req, res) {
+export async function onRequestPost({ request, env }) {
+  const raw = await request.text();
+  if (raw.length > MAX_BODY_BYTES) {
+    return json({ error: 'Please paste a shorter ingredient list.' }, 413);
+  }
+
   let payload;
   try {
-    payload = JSON.parse(await readBody(req));
-  } catch (err) {
-    const status = err.message === 'too_large' ? 413 : 400;
-    return sendJson(res, status, { error: 'Please paste a shorter ingredient list.' });
+    payload = JSON.parse(raw);
+  } catch {
+    return json({ error: 'Please paste an ingredient list first.' }, 400);
   }
 
   const text = typeof payload.text === 'string' ? payload.text : '';
   if (!text.trim()) {
-    return sendJson(res, 400, { error: 'Please paste an ingredient list first.' });
+    return json({ error: 'Please paste an ingredient list first.' }, 400);
   }
   if (text.length > MAX_CHARS) {
-    return sendJson(res, 400, { error: 'That list is too long. Try splitting it into two parts.' });
+    return json({ error: 'That list is too long. Try splitting it into two parts.' }, 400);
   }
 
   const ingredients = parseIngredients(text);
   if (ingredients.length === 0) {
-    return sendJson(res, 400, { error: 'Please paste an ingredient list first.' });
+    return json({ error: 'Please paste an ingredient list first.' }, 400);
   }
 
   const productName = typeof payload.productName === 'string'
@@ -162,35 +144,16 @@ async function handleDecode(req, res) {
     : '';
   const meta = { productName, ingredientCount: ingredients.length, caveat: CAVEAT };
 
-  if (!process.env.OPENAI_API_KEY) {
-    return sendJson(res, 200, { demo: true, ...meta, ...sampleBreakdown(ingredients) });
+  if (!env.OPENAI_API_KEY) {
+    return json({ demo: true, ...meta, ...sampleBreakdown(ingredients) });
   }
 
   try {
-    const raw = await requestBreakdown(ingredients, productName);
-    const breakdown = cleanBreakdown(raw, ingredients);
+    const breakdown = cleanBreakdown(await requestBreakdown(env.OPENAI_API_KEY, ingredients, productName), ingredients);
     if (breakdown.groups.length === 0) throw new Error('empty');
-    return sendJson(res, 200, { demo: false, ...meta, ...breakdown });
+    return json({ demo: false, ...meta, ...breakdown });
   } catch (err) {
     console.error('decode failed:', err.message);
-    return sendJson(res, 502, {
-      error: 'We could not decode this list right now. Please try again in a moment.',
-    });
+    return json({ error: 'We could not decode this list right now. Please try again in a moment.' }, 502);
   }
 }
-
-const server = http.createServer(async (req, res) => {
-  if (req.method === 'GET' && req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return fs.createReadStream(INDEX_PATH).pipe(res);
-  }
-  if (req.method === 'POST' && req.url === '/api/decode') {
-    return handleDecode(req, res);
-  }
-  res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end('Not found');
-});
-
-server.listen(PORT, () => {
-  console.log(`SEVEN MOMENTS ingredient tool running at http://localhost:${PORT}`);
-});
