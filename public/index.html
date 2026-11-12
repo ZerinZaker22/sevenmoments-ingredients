@@ -17,6 +17,7 @@
       --pink-deep: #C2407F;
       --card: #FFFFFF;
       --line: #EEDFD8;
+      --dash: #CDB9B0;
     }
     * { box-sizing: border-box; }
     body {
@@ -69,25 +70,47 @@
     textarea::placeholder { color: #B09C95; }
     textarea:focus { outline: 2px solid var(--pink); border-color: transparent; }
     .hint { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.5; }
-    .photo {
-      margin-top: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .photo button, .photo label {
-      padding: 10px 14px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
+    .upload-card {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 24px;
       background: var(--card);
-      color: var(--ink);
+      box-shadow: 0 12px 30px rgba(59, 42, 37, 0.08);
+    }
+    .dropzone {
+      padding: 36px 20px;
+      border: 2px dashed var(--dash);
+      border-radius: 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .dropzone:hover, .dropzone:focus-visible, .dropzone.dragover {
+      background: var(--pink-soft);
+      border-color: var(--pink);
+      outline: none;
+    }
+    .drop-icon { width: 56px; height: 56px; margin: 0 auto 14px; display: block; }
+    .drop-text { margin: 0; font-weight: 600; color: var(--ink); }
+    .browse { color: var(--pink-deep); text-decoration: underline; }
+    .drop-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .photo-status {
+      margin: 12px 0 0;
+      min-height: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .photo-status button {
+      margin-left: 8px;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--pink-deep);
       font: inherit;
-      font-size: 14px;
+      text-decoration: underline;
       cursor: pointer;
     }
-    .photo input { display: none; }
-    .photo-name { color: var(--muted); font-size: 13px; }
     button.primary {
       width: 100%;
       margin-top: 20px;
@@ -151,13 +174,24 @@
       <textarea id="query" placeholder="e.g. Blurring balm powder, or Aqua, Glycerin, Niacinamide..."></textarea>
       <p class="hint">Separate ingredients with commas or new lines. Product names are matched against a public ingredient database.</p>
 
-      <div class="photo">
-        <label>
-          Upload a photo of the ingredient list
-          <input type="file" id="photo" accept="image/jpeg,image/png,image/webp">
-        </label>
-        <span class="photo-name" id="photo-name"></span>
-        <button type="button" id="photo-clear" class="hidden">Remove photo</button>
+      <div class="upload-card">
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Upload a photo of the ingredient list">
+          <svg class="drop-icon" viewBox="0 0 56 56" aria-hidden="true">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#F4B8DC"/>
+                <stop offset="1" stop-color="#C2407F"/>
+              </linearGradient>
+            </defs>
+            <rect x="10" y="6" width="36" height="44" rx="6" fill="#FCE4F3"/>
+            <circle cx="30" cy="20" r="4" fill="url(#g)"/>
+            <path d="M12 44 L24 30 L32 38 L38 32 L46 44 Z" fill="url(#g)"/>
+          </svg>
+          <p class="drop-text">Drop your image here, or <span class="browse">browse</span></p>
+          <p class="drop-hint">Supports: JPG, PNG, WEBP (up to 4 MB)</p>
+          <input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden>
+        </div>
+        <p class="photo-status" id="photo-status"></p>
       </div>
 
       <button class="primary" id="submit" type="submit" disabled>Decode</button>
@@ -169,47 +203,81 @@
 
   <script>
     const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+    const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
     const form = document.getElementById('decode-form');
     const query = document.getElementById('query');
     const submit = document.getElementById('submit');
     const notice = document.getElementById('notice');
     const results = document.getElementById('results');
+    const dropzone = document.getElementById('dropzone');
     const photo = document.getElementById('photo');
-    const photoName = document.getElementById('photo-name');
-    const photoClear = document.getElementById('photo-clear');
+    const photoStatus = document.getElementById('photo-status');
     let photoData = '';
 
     function refreshSubmit() {
       submit.disabled = !query.value.trim() && !photoData;
     }
 
-    query.addEventListener('input', refreshSubmit);
+    function showNotice(message, isError) {
+      notice.textContent = message;
+      notice.classList.toggle('error', Boolean(isError));
+      notice.classList.remove('hidden');
+    }
 
-    photo.addEventListener('change', () => {
-      const file = photo.files[0];
-      if (!file) return;
+    function setPhoto(file) {
+      if (!PHOTO_TYPES.includes(file.type)) {
+        showNotice('Please upload a JPG, PNG, or WEBP image.', true);
+        return;
+      }
       if (file.size > MAX_PHOTO_BYTES) {
         showNotice('That photo is too large. Please use one under 4 MB.', true);
-        photo.value = '';
         return;
       }
       const reader = new FileReader();
       reader.onload = () => {
         photoData = reader.result;
-        photoName.textContent = file.name;
-        photoClear.classList.remove('hidden');
+        photoStatus.replaceChildren(document.createTextNode(`${file.name} attached`));
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.textContent = 'Remove';
+        clear.addEventListener('click', clearPhoto);
+        photoStatus.append(clear);
         refreshSubmit();
       };
       reader.readAsDataURL(file);
-    });
+    }
 
-    photoClear.addEventListener('click', () => {
+    function clearPhoto() {
       photoData = '';
       photo.value = '';
-      photoName.textContent = '';
-      photoClear.classList.add('hidden');
+      photoStatus.replaceChildren();
       refreshSubmit();
+    }
+
+    query.addEventListener('input', refreshSubmit);
+
+    dropzone.addEventListener('click', () => photo.click());
+    dropzone.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        photo.click();
+      }
+    });
+    dropzone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('dragover');
+      const file = event.dataTransfer.files[0];
+      if (file) setPhoto(file);
+    });
+
+    photo.addEventListener('change', () => {
+      if (photo.files[0]) setPhoto(photo.files[0]);
     });
 
     function el(tag, className, text) {
@@ -217,12 +285,6 @@
       if (className) node.className = className;
       if (text) node.textContent = text;
       return node;
-    }
-
-    function showNotice(message, isError) {
-      notice.textContent = message;
-      notice.classList.toggle('error', Boolean(isError));
-      notice.classList.remove('hidden');
     }
 
     function renderBreakdown(data) {
