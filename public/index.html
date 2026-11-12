@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SEVEN MOMENTS</title>
+  <title>the ingredient decoder by seven moments</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
@@ -34,9 +34,16 @@
       font-family: "Playfair Display", Georgia, serif;
       font-style: italic;
       font-weight: 500;
-      font-size: clamp(38px, 8vw, 52px);
-      letter-spacing: 0.5px;
+      font-size: clamp(36px, 7vw, 48px);
+      letter-spacing: 0.3px;
       line-height: 1.1;
+    }
+    .by {
+      margin: 8px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.4px;
     }
     .sub {
       margin: 18px auto 0;
@@ -46,10 +53,10 @@
       line-height: 1.55;
     }
     form { margin-top: 40px; }
-    label { display: block; font-weight: 600; margin: 20px 0 8px; }
-    label:first-of-type { margin-top: 0; }
-    input[type="text"], textarea {
+    label.field { display: block; font-weight: 600; margin-bottom: 8px; }
+    textarea {
       width: 100%;
+      min-height: 150px;
       padding: 14px 16px;
       border: 1px solid var(--line);
       border-radius: 14px;
@@ -57,12 +64,30 @@
       color: var(--ink);
       font: inherit;
       line-height: 1.5;
+      resize: vertical;
     }
-    input[type="text"] { padding: 12px 16px; }
-    textarea { min-height: 170px; resize: vertical; }
-    input::placeholder, textarea::placeholder { color: #B09C95; }
-    input:focus, textarea:focus { outline: 2px solid var(--pink); border-color: transparent; }
-    .hint { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    textarea::placeholder { color: #B09C95; }
+    textarea:focus { outline: 2px solid var(--pink); border-color: transparent; }
+    .hint { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .photo {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .photo button, .photo label {
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .photo input { display: none; }
+    .photo-name { color: var(--muted); font-size: 13px; }
     button.primary {
       width: 100%;
       margin-top: 20px;
@@ -117,17 +142,25 @@
 </head>
 <body>
   <main class="wrap">
-    <h1>SEVEN MOMENTS</h1>
-    <p class="sub">Paste a skincare ingredient list and get a plain-English breakdown of what each ingredient is doing.</p>
+    <h1>the ingredient decoder</h1>
+    <p class="by">by seven moments</p>
+    <p class="sub">Type a product name, paste an ingredient list, or ask about one ingredient. You'll get a plain-English breakdown of what it does.</p>
 
     <form id="decode-form">
-      <label for="product">Product name (optional)</label>
-      <input type="text" id="product" maxlength="100" placeholder="e.g. Blurring balm powder">
+      <label class="field" for="query">Product, ingredient list, or ingredient</label>
+      <textarea id="query" placeholder="e.g. Blurring balm powder, or Aqua, Glycerin, Niacinamide..."></textarea>
+      <p class="hint">Separate ingredients with commas or new lines. Product names are matched against a public ingredient database.</p>
 
-      <label for="ingredients">Ingredient list</label>
-      <textarea id="ingredients" placeholder="e.g. Aqua, Glycerin, Niacinamide, Phenoxyethanol, Tocopherol..."></textarea>
-      <p class="hint">Separate ingredients with commas or new lines.</p>
-      <button class="primary" id="submit" type="submit" disabled>Decode ingredients</button>
+      <div class="photo">
+        <label>
+          Upload a photo of the ingredient list
+          <input type="file" id="photo" accept="image/jpeg,image/png,image/webp">
+        </label>
+        <span class="photo-name" id="photo-name"></span>
+        <button type="button" id="photo-clear" class="hidden">Remove photo</button>
+      </div>
+
+      <button class="primary" id="submit" type="submit" disabled>Decode</button>
     </form>
 
     <div id="notice" class="notice hidden"></div>
@@ -135,15 +168,48 @@
   </main>
 
   <script>
+    const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+
     const form = document.getElementById('decode-form');
-    const product = document.getElementById('product');
-    const input = document.getElementById('ingredients');
+    const query = document.getElementById('query');
     const submit = document.getElementById('submit');
     const notice = document.getElementById('notice');
     const results = document.getElementById('results');
+    const photo = document.getElementById('photo');
+    const photoName = document.getElementById('photo-name');
+    const photoClear = document.getElementById('photo-clear');
+    let photoData = '';
 
-    input.addEventListener('input', () => {
-      submit.disabled = !input.value.trim();
+    function refreshSubmit() {
+      submit.disabled = !query.value.trim() && !photoData;
+    }
+
+    query.addEventListener('input', refreshSubmit);
+
+    photo.addEventListener('change', () => {
+      const file = photo.files[0];
+      if (!file) return;
+      if (file.size > MAX_PHOTO_BYTES) {
+        showNotice('That photo is too large. Please use one under 4 MB.', true);
+        photo.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        photoData = reader.result;
+        photoName.textContent = file.name;
+        photoClear.classList.remove('hidden');
+        refreshSubmit();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    photoClear.addEventListener('click', () => {
+      photoData = '';
+      photo.value = '';
+      photoName.textContent = '';
+      photoClear.classList.add('hidden');
+      refreshSubmit();
     });
 
     function el(tag, className, text) {
@@ -162,11 +228,15 @@
     function renderBreakdown(data) {
       const nodes = [];
 
-      const head = el('p', 'result-head');
-      const count = `${data.ingredientCount} ingredients`;
-      head.textContent = data.productName ? `${data.productName} · ` : '';
-      head.append(el('span', '', count));
-      nodes.push(head);
+      if (data.ingredientCount && data.source === 'photo') {
+        nodes.push(el('p', 'result-head', `from your photo · ${data.ingredientCount} ingredients`));
+      } else if (data.ingredientCount && data.productName) {
+        const head = el('p', 'result-head', `${data.productName} · `);
+        head.append(el('span', '', `${data.ingredientCount} ingredients`));
+        nodes.push(head);
+      } else if (data.ingredientCount && data.source === 'list') {
+        nodes.push(el('p', 'result-head', `${data.ingredientCount} ingredients`));
+      }
 
       if (data.intro) nodes.push(el('p', 'intro', data.intro));
 
@@ -206,7 +276,7 @@
         const response = await fetch('/api/decode', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: input.value, productName: product.value }),
+          body: JSON.stringify({ text: query.value.trim(), image: photoData }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
@@ -218,8 +288,8 @@
       } catch (err) {
         showNotice(err.message, true);
       } finally {
-        submit.textContent = 'Decode ingredients';
-        submit.disabled = !input.value.trim();
+        submit.textContent = 'Decode';
+        refreshSubmit();
       }
     });
   </script>
