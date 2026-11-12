@@ -179,12 +179,18 @@ async function explainSingleIngredient(apiKey, text) {
 }
 
 async function lookupProduct(query) {
+  const words = query.toLowerCase().split(/\s+/).filter((word) => word.length >= 3);
+  if (words.length === 0) return null;
   try {
     const url = `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,brands,ingredients_text`;
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!response.ok) return null;
     const data = await response.json();
-    const match = (data.products || []).find((product) => product.ingredients_text && product.ingredients_text.trim());
+    const match = (data.products || []).find((product) => {
+      if (!product.ingredients_text || !product.ingredients_text.trim()) return false;
+      const name = [product.brands, product.product_name].filter(Boolean).join(' ').toLowerCase();
+      return words.some((word) => name.includes(word));
+    });
     if (!match) return null;
     return {
       name: [match.brands, match.product_name].filter(Boolean).join(' ').slice(0, 120),
