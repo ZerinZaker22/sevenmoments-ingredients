@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEVEN MOMENTS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@1,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FBF7F4;
+      --ink: #3B2A25;
+      --muted: #8A7068;
+      --pink-soft: #FCE4F3;
+      --pink: #F4B8DC;
+      --pink-deep: #C2407F;
+      --card: #FFFFFF;
+      --line: #EEDFD8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 560px; margin: 0 auto; padding: 56px 20px 80px; }
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-family: "Playfair Display", Georgia, serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: clamp(38px, 8vw, 52px);
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+    }
+    .sub {
+      margin: 18px auto 0;
+      max-width: 420px;
+      text-align: center;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    form { margin-top: 40px; }
+    label { display: block; font-weight: 600; margin: 20px 0 8px; }
+    label:first-of-type { margin-top: 0; }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      color: var(--ink);
+      font: inherit;
+      line-height: 1.5;
+    }
+    input[type="text"] { padding: 12px 16px; }
+    textarea { min-height: 170px; resize: vertical; }
+    input::placeholder, textarea::placeholder { color: #B09C95; }
+    input:focus, textarea:focus { outline: 2px solid var(--pink); border-color: transparent; }
+    .hint { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    button.primary {
+      width: 100%;
+      margin-top: 20px;
+      padding: 16px;
+      border: 0;
+      border-radius: 14px;
+      background: var(--pink-soft);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button.primary:not(:disabled):hover { background: var(--pink); }
+    button.primary:disabled { color: #A08F88; cursor: not-allowed; }
+    .notice {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #FFF4E5;
+      color: #7A4B12;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .notice.error { background: #FDECEF; color: #8A1F3D; }
+    .results { margin-top: 36px; display: grid; gap: 12px; }
+    .result-head { margin: 0 0 4px; font-weight: 600; }
+    .result-head span { color: var(--muted); font-weight: 400; }
+    .intro { margin: 0 0 8px; font-size: 18px; line-height: 1.5; }
+    .card {
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--card);
+    }
+    .card h3 { margin: 0 0 4px; font-size: 16px; color: var(--pink-deep); }
+    .card .names { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+    .card p { margin: 0; line-height: 1.6; }
+    .card ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.6; }
+    .caveat {
+      margin-top: 24px;
+      padding: 20px 22px;
+      border-radius: 16px;
+      background: var(--pink-soft);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .caveat p { margin: 0 0 6px; }
+    .caveat p:first-child { font-weight: 600; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>SEVEN MOMENTS</h1>
+    <p class="sub">Paste a skincare ingredient list and get a plain-English breakdown of what each ingredient is doing.</p>
+
+    <form id="decode-form">
+      <label for="product">Product name (optional)</label>
+      <input type="text" id="product" maxlength="100" placeholder="e.g. Blurring balm powder">
+
+      <label for="ingredients">Ingredient list</label>
+      <textarea id="ingredients" placeholder="e.g. Aqua, Glycerin, Niacinamide, Phenoxyethanol, Tocopherol..."></textarea>
+      <p class="hint">Separate ingredients with commas or new lines.</p>
+      <button class="primary" id="submit" type="submit" disabled>Decode ingredients</button>
+    </form>
+
+    <div id="notice" class="notice hidden"></div>
+    <section id="results" class="results"></section>
+  </main>
+
+  <script>
+    const form = document.getElementById('decode-form');
+    const product = document.getElementById('product');
+    const input = document.getElementById('ingredients');
+    const submit = document.getElementById('submit');
+    const notice = document.getElementById('notice');
+    const results = document.getElementById('results');
+
+    input.addEventListener('input', () => {
+      submit.disabled = !input.value.trim();
+    });
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text) node.textContent = text;
+      return node;
+    }
+
+    function showNotice(message, isError) {
+      notice.textContent = message;
+      notice.classList.toggle('error', Boolean(isError));
+      notice.classList.remove('hidden');
+    }
+
+    function renderBreakdown(data) {
+      const nodes = [];
+
+      const head = el('p', 'result-head');
+      const count = `${data.ingredientCount} ingredients`;
+      head.textContent = data.productName ? `${data.productName} · ` : '';
+      head.append(el('span', '', count));
+      nodes.push(head);
+
+      if (data.intro) nodes.push(el('p', 'intro', data.intro));
+
+      data.groups.forEach((group) => {
+        const card = el('article', 'card');
+        card.append(
+          el('h3', '', group.label),
+          el('p', 'names', group.ingredients.join(', ')),
+          el('p', '', group.explanation),
+        );
+        nodes.push(card);
+      });
+
+      if (data.worth_knowing.length) {
+        const card = el('article', 'card');
+        const list = el('ul');
+        data.worth_knowing.forEach((note) => list.append(el('li', '', note)));
+        card.append(el('h3', '', 'worth knowing'), list);
+        nodes.push(card);
+      }
+
+      const caveat = el('section', 'caveat');
+      data.caveat.split('\n').forEach((line) => caveat.append(el('p', '', line)));
+      nodes.push(caveat);
+
+      results.replaceChildren(...nodes);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      submit.textContent = 'Decoding...';
+      notice.classList.add('hidden');
+      results.replaceChildren();
+
+      try {
+        const response = await fetch('/api/decode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: input.value, productName: product.value }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+
+        if (data.demo) {
+          showNotice('Demo mode: this is sample layout only. Connect the OpenAI key to see real breakdowns.');
+        }
+        renderBreakdown(data);
+      } catch (err) {
+        showNotice(err.message, true);
+      } finally {
+        submit.textContent = 'Decode ingredients';
+        submit.disabled = !input.value.trim();
+      }
+    });
+  </script>
+</body>
+</html>

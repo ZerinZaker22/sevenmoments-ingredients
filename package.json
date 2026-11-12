@@ -1,0 +1,9 @@
+{
+  "name": "seven-moments-ingredient-tool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SEVEN MOMENTS plain-English skincare ingredient breakdown",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js"
+  }
+}
