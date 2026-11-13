@@ -232,7 +232,7 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
     const retry = await requestBreakdown(apiKey, missing, productName);
     raw.groups.push(...retry.groups);
   }
-  const breakdown = cleanBreakdown(raw, ingredients);
+  const breakdown = cleanBreakdown(raw);
   if (breakdown.groups.length === 0) throw new Error('empty');
   breakdown.worth_knowing.push(...labelNotes(ingredients));
   return json({ demo: false, ...meta, ...breakdown });
