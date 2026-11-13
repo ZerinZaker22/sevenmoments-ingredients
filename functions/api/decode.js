@@ -1,6 +1,6 @@
 import { cleanBreakdown, cleanText } from '../../lib/guard.js';
 
-const MODEL = 'gpt-4o-mini';
+const MODEL = 'gpt-5-nano';
 const DAILY_LIMIT = 25;
 const MAX_CHARS = 3000;
 const MAX_INGREDIENTS = 100;
@@ -20,7 +20,7 @@ Writing style:
 - Lowercase-forward, short sentences, contractions. Conversational.
 - Start with one opening line saying what the product is for, before any ingredient. Work it out from the ingredients (for example "this one's for people whose face gets shiny"). If you can't tell, say so honestly.
 - Each group gets a short label in plain words and one or two sentences.
-- If an ingredient is obscure or you are not sure what it does, say "i'm not sure about this one" instead of guessing.
+- If an ingredient is obscure or you genuinely don't know what it does, say "i'm not sure about this one" instead of guessing. Common ingredients such as water, glycerin, and fragrance are known, so explain them.
 - Emoji and exclamation points are not allowed. No pet names (girl, babe, bestie, hun). No marketing words (nourishing, luxurious, transformative, powerhouse, glow-giving).
 - Describe things in flat, factual terms. Don't frame anything as a win or a warning.
 
@@ -34,7 +34,7 @@ Never:
 - Guess when you don't know.
 
 "worth_knowing" is a short list of plain sentences. Include only what applies to these ingredients:
-- fragrance, if present
+- fragrance, if present: write a full sentence, like "there's fragrance in it."
 - silicones and pilling, if present: explain it is about what someone layers, not a flaw
 - oils that can feed fungal acne, if present
 - anything commonly layered badly with other products
@@ -115,7 +115,8 @@ async function callOpenAI(apiKey, messages) {
     },
     body: JSON.stringify({
       model: MODEL,
-      temperature: 0.4,
+      reasoning_effort: 'minimal',
+      max_completion_tokens: 1200,
       response_format: { type: 'json_object' },
       messages,
     }),
