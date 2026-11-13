@@ -5,7 +5,7 @@ const DAILY_LIMIT = 25;
 const MAX_CHARS = 3000;
 const MAX_INGREDIENTS = 100;
 const MAX_BODY_BYTES = 6 * 1024 * 1024;
-const NOT_FOUND = "i don't have this one, paste the ingredients and i'll break it down.";
+const NOT_FOUND = "i don't have this one in my product list. paste the ingredients, or upload a photo of the ingredient list, and i'll break it down.";
 
 const CAVEAT = [
   'before you panic or celebrate',
@@ -49,7 +49,9 @@ If the text is the name of a real skincare ingredient, explain what it does in t
 If you are not sure what it does, say "i'm not sure about this one."
 If the text is not a skincare ingredient, set "is_ingredient" to false.
 
-Respond only with JSON: {"is_ingredient": true or false, "name": "...", "explanation": "..."}`;
+Respond only with JSON: {"is_ingredient": true or false, "name": "...", "explanation": "..."}
+
+The "name" must be only the ingredient's common name, with no brand, product name, or percentage.`;
 
 const PHOTO_PROMPT = `Read the ingredient list printed on this skincare product photo. Return the ingredient names exactly as printed, in the order printed. If there is no ingredient list in the photo, return an empty list.
 
@@ -176,7 +178,8 @@ async function explainSingleIngredient(apiKey, text) {
   if (!parsed.is_ingredient) return null;
   const explanation = cleanText(parsed.explanation || '');
   if (!explanation) return null;
-  return { name: String(parsed.name || text).slice(0, 100), explanation };
+  const name = String(parsed.name || text).replace(/\s*\d+(\.\d+)?\s*%/g, '').trim().slice(0, 100);
+  return { name: name || text, explanation };
 }
 
 async function lookupProduct(query) {
