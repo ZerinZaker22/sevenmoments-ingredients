@@ -225,10 +225,30 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
     return json({ demo: true, ...meta, ...sample });
   }
 
-  const breakdown = cleanBreakdown(await requestBreakdown(apiKey, ingredients, productName), ingredients);
+  const raw = await requestBreakdown(apiKey, ingredients, productName);
+  const coveredNames = new Set(raw.groups.flatMap((group) => group.ingredients.map((name) => name.trim().toLowerCase())));
+  const missing = ingredients.filter((name) => !coveredNames.has(name.trim().toLowerCase()));
+  if (missing.length > 0) {
+    const retry = await requestBreakdown(apiKey, missing, productName);
+    raw.groups.push(...retry.groups);
+  }
+  const breakdown = cleanBreakdown(raw, ingredients);
   if (breakdown.groups.length === 0) throw new Error('empty');
   breakdown.worth_knowing.push(...labelNotes(ingredients));
   return json({ demo: false, ...meta, ...breakdown });
+}
+
+async function tryIngredient(apiKey, text) {
+  const single = await explainSingleIngredient(apiKey, text);
+  if (!single) return null;
+  return json({
+    demo: false,
+    mode: 'ingredient',
+    caveat: CAVEAT,
+    intro: '',
+    groups: [{ label: single.name, ingredients: [single.name], explanation: single.explanation }],
+    worth_knowing: [],
+  });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -273,18 +293,10 @@ export async function onRequestPost({ request, env }) {
       return await breakdownResponse(apiKey, { ingredients: splitIngredients(text), productName: '', source: 'list' });
     }
 
-    if (apiKey) {
-      const single = await explainSingleIngredient(apiKey, text);
-      if (single) {
-        return json({
-          demo: false,
-          mode: 'ingredient',
-          caveat: CAVEAT,
-          intro: '',
-          groups: [{ label: single.name, ingredients: [single.name], explanation: single.explanation }],
-          worth_knowing: [],
-        });
-      }
+    const singleWord = !/\s/.test(text);
+    if (apiKey && singleWord) {
+      const ingredient = await tryIngredient(apiKey, text);
+      if (ingredient) return ingredient;
     }
 
     const product = await lookupProduct(text);
@@ -294,6 +306,11 @@ export async function onRequestPost({ request, env }) {
 
     if (!apiKey) {
       return json({ demo: true, mode: 'ingredient', caveat: CAVEAT, intro: '', groups: [{ label: text, ingredients: [text], explanation: 'placeholder text for this ingredient. the real explanation appears once the key is connected.' }], worth_knowing: [] });
+    }
+
+    if (!singleWord) {
+      const ingredient = await tryIngredient(apiKey, text);
+      if (ingredient) return ingredient;
     }
 
     return json({ error: NOT_FOUND }, 404);
