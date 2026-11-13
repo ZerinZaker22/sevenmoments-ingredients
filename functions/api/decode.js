@@ -190,7 +190,7 @@ async function lookupProduct(query) {
     const match = (data.products || []).find((product) => {
       if (!product.ingredients_text || !product.ingredients_text.trim()) return false;
       const name = [product.brands, product.product_name].filter(Boolean).join(' ').toLowerCase();
-      return words.some((word) => name.includes(word));
+      return words.every((word) => name.includes(word));
     });
     if (!match) return null;
     return {
