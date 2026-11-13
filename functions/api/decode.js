@@ -311,11 +311,6 @@ export async function onRequestPost({ request, env }) {
       return json({ demo: true, mode: 'ingredient', caveat: CAVEAT, intro: '', groups: [{ label: text, ingredients: [text], explanation: 'placeholder text for this ingredient. the real explanation appears once the key is connected.' }], worth_knowing: [] });
     }
 
-    if (!singleWord) {
-      const ingredient = await tryIngredient(apiKey, text);
-      if (ingredient) return ingredient;
-    }
-
     return json({ error: NOT_FOUND }, 404);
   } catch (err) {
     console.error('decode failed:', err.message);
