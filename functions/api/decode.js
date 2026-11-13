@@ -241,7 +241,7 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
   return json({ demo: false, ...meta, ...breakdown });
 }
 
-const PRODUCT_PROMPT = `You identify skincare product names. Given text typed by a user, return the brand and the full product name, with spelling corrected. Do not add ingredients. If the text is not a skincare product or brand, return empty strings.
+const PRODUCT_PROMPT = `You identify skincare product names. Given text typed by a user, return the brand and the full product name, with spelling corrected. The name must include the brand. Do not add ingredients. If the text is not a skincare product or brand, return empty strings.
 
 Respond only with JSON: {"brand": "...", "name": "..."}`;
 
@@ -329,7 +329,9 @@ export async function onRequestPost({ request, env }) {
     const info = await identifyProduct(apiKey, text);
     if (info.name && info.name.toLowerCase() !== text.toLowerCase()) {
       const corrected = await lookupProduct(info.name);
-      if (corrected && corrected.ingredients.length > 0) {
+      const brandWord = info.brand.toLowerCase().split(/\s+/)[0] || '';
+      const brandMatches = !brandWord || corrected?.name.toLowerCase().includes(brandWord);
+      if (corrected && brandMatches && corrected.ingredients.length > 0) {
         return await breakdownResponse(apiKey, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
       }
     }
