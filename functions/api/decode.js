@@ -241,6 +241,21 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
   return json({ demo: false, ...meta, ...breakdown });
 }
 
+const PRODUCT_PROMPT = `You identify skincare product names. Given text typed by a user, return the brand and the full product name, with spelling corrected. Do not add ingredients. If the text is not a skincare product or brand, return empty strings.
+
+Respond only with JSON: {"brand": "...", "name": "..."}`;
+
+async function identifyProduct(apiKey, text) {
+  const parsed = await callOpenAI(apiKey, [
+    { role: 'system', content: PRODUCT_PROMPT },
+    { role: 'user', content: text },
+  ]);
+  return {
+    brand: String(parsed.brand || '').trim().slice(0, 60),
+    name: String(parsed.name || '').trim().slice(0, 120),
+  };
+}
+
 async function tryIngredient(apiKey, text) {
   const single = await explainSingleIngredient(apiKey, text);
   if (!single) return null;
@@ -309,6 +324,17 @@ export async function onRequestPost({ request, env }) {
 
     if (!apiKey) {
       return json({ demo: true, mode: 'ingredient', caveat: CAVEAT, intro: '', groups: [{ label: text, ingredients: [text], explanation: 'placeholder text for this ingredient. the real explanation appears once the key is connected.' }], worth_knowing: [] });
+    }
+
+    const info = await identifyProduct(apiKey, text);
+    if (info.name && info.name.toLowerCase() !== text.toLowerCase()) {
+      const corrected = await lookupProduct(info.name);
+      if (corrected && corrected.ingredients.length > 0) {
+        return await breakdownResponse(apiKey, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
+      }
+    }
+    if (info.brand) {
+      return json({ error: `i can see this is a ${info.brand} product. please type the full product name, or upload a photo of the ingredient list.` }, 404);
     }
 
     return json({ error: NOT_FOUND }, 404);
