@@ -205,6 +205,36 @@ async function lookupProduct(query) {
   }
 }
 
+async function searchProductIngredients(apiKey, productName) {
+  try {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        tools: [{ type: 'web_search', search_context_size: 'low' }],
+        input: `Find the full ingredient list for the skincare product "${productName}". Return ONLY valid JSON, no other text: {"found": true, "ingredients": ["Water", "Glycerin", ...]} or {"found": false}. Do not make up ingredients.`,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const msg = (data.output || []).find((item) => item.type === 'message');
+    const text = (msg && msg.content && msg.content[0] && msg.content[0].text) || '';
+    if (!text) return null;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.found || !Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) return null;
+    return parsed.ingredients.map((name) => String(name).trim()).filter(Boolean).slice(0, MAX_INGREDIENTS);
+  } catch {
+    return null;
+  }
+}
+
 function sampleBreakdown(ingredients) {
   return {
     intro: 'demo preview. this is sample layout only, so connect the openai key to get a real breakdown.',
@@ -335,6 +365,13 @@ export async function onRequestPost({ request, env }) {
         return await breakdownResponse(apiKey, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
       }
     }
+
+    const searchName = info.name || text;
+    const webIngredients = await searchProductIngredients(apiKey, searchName);
+    if (webIngredients && webIngredients.length > 0) {
+      return await breakdownResponse(apiKey, { ingredients: webIngredients, productName: info.name || text, source: 'web' });
+    }
+
     if (info.brand) {
       return json({ error: `i can see this is a ${info.brand} product. please type the full product name, or upload a photo of the ingredient list.` }, 404);
     }
