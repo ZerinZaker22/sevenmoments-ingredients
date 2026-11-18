@@ -176,6 +176,10 @@
     .caveat p { margin: 0 0 6px; }
     .caveat p:first-child { font-weight: 600; }
     .hidden { display: none !important; }
+    @keyframes pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+    .dots span { animation: pulse 1.4s infinite; }
+    .dots span:nth-child(2) { animation-delay: .2s; }
+    .dots span:nth-child(3) { animation-delay: .4s; }
   </style>
 </head>
 <body>
@@ -279,7 +283,7 @@
 
     async function setPhoto(file) {
       if (!PHOTO_TYPES.includes(file.type)) {
-        showNotice('Please upload a JPG, PNG, or WEBP image.', true);
+        showNotice('Please upload a JPG, PNG, WEBP, or AVIF image.', true);
         return;
       }
       try {
@@ -394,7 +398,7 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
-      submit.textContent = 'Decoding...';
+      submit.innerHTML = 'Decoding<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
       notice.classList.add('hidden');
       results.replaceChildren();
 
@@ -415,7 +419,7 @@
       } catch (err) {
         showNotice(err.message, true);
       } finally {
-        submit.textContent = 'Decode';
+        submit.innerHTML = 'Decode';
         refreshSubmit();
       }
     });

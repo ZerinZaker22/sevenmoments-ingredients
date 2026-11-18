@@ -343,8 +343,10 @@ export async function onRequestPost({ request, env }) {
 
     const singleWord = !/\s/.test(text);
     if (apiKey && singleWord) {
-      const ingredient = await tryIngredient(apiKey, text);
-      if (ingredient) return ingredient;
+      try {
+        const ingredient = await tryIngredient(apiKey, text);
+        if (ingredient) return ingredient;
+      } catch {}
     }
 
     const product = await lookupProduct(text);
@@ -356,7 +358,18 @@ export async function onRequestPost({ request, env }) {
       return json({ demo: true, mode: 'ingredient', caveat: CAVEAT, intro: '', groups: [{ label: text, ingredients: [text], explanation: 'placeholder text for this ingredient. the real explanation appears once the key is connected.' }], worth_knowing: [] });
     }
 
-    const info = await identifyProduct(apiKey, text);
+    let info = { brand: '', name: '' };
+    try {
+      const [identified, webDirect] = await Promise.all([
+        identifyProduct(apiKey, text),
+        searchProductIngredients(apiKey, text),
+      ]);
+      info = identified;
+      if (webDirect && webDirect.length > 0) {
+        return await breakdownResponse(apiKey, { ingredients: webDirect, productName: info.name || text, source: 'web' });
+      }
+    } catch {}
+
     if (info.name && info.name.toLowerCase() !== text.toLowerCase()) {
       const corrected = await lookupProduct(info.name);
       const brandWord = info.brand.toLowerCase().split(/\s+/)[0] || '';
@@ -364,12 +377,10 @@ export async function onRequestPost({ request, env }) {
       if (corrected && brandMatches && corrected.ingredients.length > 0) {
         return await breakdownResponse(apiKey, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
       }
-    }
-
-    const searchName = info.name || text;
-    const webIngredients = await searchProductIngredients(apiKey, searchName);
-    if (webIngredients && webIngredients.length > 0) {
-      return await breakdownResponse(apiKey, { ingredients: webIngredients, productName: info.name || text, source: 'web' });
+      const webCorrected = await searchProductIngredients(apiKey, info.name);
+      if (webCorrected && webCorrected.length > 0) {
+        return await breakdownResponse(apiKey, { ingredients: webCorrected, productName: info.name, source: 'web' });
+      }
     }
 
     if (info.brand) {
