@@ -12,13 +12,13 @@ const CAVEAT = [
   "a label tells you what's in something, never how much. same ingredient, two products, completely different experience. so read this as what the formula is going for, not a prediction of what it'll do on you.",
 ].join('\n');
 
-const SYSTEM_PROMPT = `You write short, friendly ingredient breakdowns for SEVEN MOMENTS, a skincare brand. The audience is people who want to understand a product's formula.
+const SYSTEM_PROMPT = `You write short, friendly ingredient breakdowns for SEVEN MOMENTS. The audience is people who want to understand what is in a beauty or personal care product.
 
-Explain what each ingredient in the list is doing in the formula, in plain English. Group the ingredients by the job they do (for example oil control, the blur, hydration, structure, color, preservation, fragrance), not by the order on the label. Every ingredient must appear in exactly one group.
+Explain what each ingredient in the list is doing in the formula, in plain English. Group the ingredients by the job they do (for example oil control, the blur, hydration, structure, color, preservation, fragrance, odor control), not by the order on the label. Every ingredient must appear in exactly one group.
 
 Writing style:
 - Lowercase-forward, short sentences, contractions. Conversational.
-- Start with one opening line saying what the product is for, before any ingredient. Work it out from the ingredients (for example "this one's for people whose face gets shiny"). If you can't tell, say so honestly.
+- Start with one opening line saying what the product is for, based on the ingredients. Work it out from what you see (for example "this one's for people whose face gets shiny" or "this is a deodorant meant to keep things fresh without aluminum"). If you genuinely can't tell, say "i'm not sure what this one's for, but here's what's in it."
 - Each group gets a short label in plain words and one or two sentences.
 - If an ingredient is obscure or you genuinely don't know what it does, say "i'm not sure about this one" instead of guessing. Common ingredients such as water, glycerin, and fragrance are known, so explain them.
 - Emoji and exclamation points are not allowed. No pet names (girl, babe, bestie, hun). No marketing words (nourishing, luxurious, transformative, powerhouse, glow-giving).
@@ -43,17 +43,17 @@ Leave the list empty if none apply.
 Respond only with JSON in this shape:
 {"intro":"...","groups":[{"label":"...","ingredients":["..."],"explanation":"..."}],"worth_knowing":["..."]}`;
 
-const INGREDIENT_PROMPT = `You explain a single skincare ingredient for SEVEN MOMENTS, a skincare brand.
+const INGREDIENT_PROMPT = `You explain a single beauty or personal care ingredient for SEVEN MOMENTS.
 
-If the text is the name of a real skincare ingredient, explain what it does in the formula in one or two short sentences. Lowercase-forward, short sentences, contractions, flat and factual. No emoji, no exclamation points, no scores, no good/bad/safe/harsh/clean words, no product comparisons, no medical claims.
+If the text is the name of a real cosmetic, skincare, or personal care ingredient, explain what it does in the formula in one or two short sentences. Lowercase-forward, short sentences, contractions, flat and factual. No emoji, no exclamation points, no scores, no good/bad/safe/harsh/clean words, no product comparisons, no medical claims.
 If you are not sure what it does, say "i'm not sure about this one."
-If the text is not a skincare ingredient, set "is_ingredient" to false.
+If the text is not a cosmetic or personal care ingredient, set "is_ingredient" to false.
 
 Respond only with JSON: {"is_ingredient": true or false, "name": "...", "explanation": "..."}
 
 The "name" must be only the ingredient's common name, with no brand, product name, or percentage.`;
 
-const PHOTO_PROMPT = `Read the ingredient list printed on this skincare product photo. Return the ingredient names exactly as printed, in the order printed. If there is no ingredient list in the photo, return an empty list.
+const PHOTO_PROMPT = `Read the ingredient list printed on this product photo. Return the ingredient names exactly as printed, in the order printed. If there is no ingredient list in the photo, return an empty list.
 
 Respond only with JSON: {"ingredients":["..."]}`;
 
@@ -271,7 +271,7 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
   return json({ demo: false, ...meta, ...breakdown });
 }
 
-const PRODUCT_PROMPT = `You identify skincare product names. Given text typed by a user, return the brand and the full product name, with spelling corrected. The name must include the brand. Do not add ingredients. If the text is not a skincare product or brand, return empty strings.
+const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full product name, with spelling corrected. The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
 
 Respond only with JSON: {"brand": "...", "name": "..."}`;
 

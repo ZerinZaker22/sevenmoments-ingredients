@@ -127,6 +127,20 @@
     }
     button.primary:not(:disabled):hover { background: var(--pink); }
     button.primary:disabled { color: #A08F88; cursor: not-allowed; }
+    button.reset {
+      width: 100%;
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    button.reset:hover { background: var(--pink-soft); border-color: var(--pink); }
     .notice {
       margin-top: 16px;
       padding: 12px 14px;
@@ -189,7 +203,7 @@
             <path d="M12 44 L24 30 L32 38 L38 32 L46 44 Z" fill="url(#g)"/>
           </svg>
           <p class="drop-text">Drop your image here, or <span class="browse">browse</span></p>
-          <p class="drop-hint">Supports: JPG, PNG, WEBP (up to 4 MB)</p>
+          <p class="drop-hint">Supports: JPG, PNG, WEBP</p>
           <input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden>
         </div>
         <p class="photo-status" id="photo-status"></p>
@@ -226,18 +240,51 @@
       notice.classList.remove('hidden');
     }
 
-    function setPhoto(file) {
+    function compressImage(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const MAX_DIM = 2048;
+          let w = img.width, h = img.height;
+          if (w > MAX_DIM || h > MAX_DIM) {
+            const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          let quality = 0.85;
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          while (dataUrl.length > MAX_PHOTO_BYTES * 1.37 && quality > 0.3) {
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+          if (dataUrl.length > MAX_PHOTO_BYTES * 1.37) {
+            const ratio2 = 0.6;
+            canvas.width = Math.round(w * ratio2);
+            canvas.height = Math.round(h * ratio2);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          }
+          resolve(dataUrl);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read this image.')); };
+        img.src = url;
+      });
+    }
+
+    async function setPhoto(file) {
       if (!PHOTO_TYPES.includes(file.type)) {
         showNotice('Please upload a JPG, PNG, or WEBP image.', true);
         return;
       }
-      if (file.size > MAX_PHOTO_BYTES) {
-        showNotice('That photo is too large. Please use one under 4 MB.', true);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        photoData = reader.result;
+      try {
+        photoStatus.replaceChildren(document.createTextNode('processing image...'));
+        photoData = await compressImage(file);
         photoStatus.replaceChildren(document.createTextNode(`${file.name} attached`));
         const clear = document.createElement('button');
         clear.type = 'button';
@@ -245,8 +292,9 @@
         clear.addEventListener('click', clearPhoto);
         photoStatus.append(clear);
         refreshSubmit();
-      };
-      reader.readAsDataURL(file);
+      } catch {
+        showNotice('Could not read this image. Please try another photo.', true);
+      }
     }
 
     function clearPhoto() {
@@ -325,7 +373,22 @@
       data.caveat.split('\n').forEach((line) => caveat.append(el('p', '', line)));
       nodes.push(caveat);
 
+      const resetBtn = el('button', 'reset', 'Decode another product');
+      resetBtn.type = 'button';
+      resetBtn.addEventListener('click', resetForm);
+      nodes.push(resetBtn);
+
       results.replaceChildren(...nodes);
+    }
+
+    function resetForm() {
+      results.replaceChildren();
+      notice.classList.add('hidden');
+      query.value = '';
+      clearPhoto();
+      form.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      query.focus();
     }
 
     form.addEventListener('submit', async (event) => {
@@ -348,6 +411,7 @@
           showNotice('Demo mode: this is sample layout only. Connect the OpenAI key to see real breakdowns.');
         }
         renderBreakdown(data);
+        form.classList.add('hidden');
       } catch (err) {
         showNotice(err.message, true);
       } finally {
