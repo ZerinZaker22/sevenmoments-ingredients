@@ -176,10 +176,49 @@
     .caveat p { margin: 0 0 6px; }
     .caveat p:first-child { font-weight: 600; }
     .hidden { display: none !important; }
-    @keyframes pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
-    .dots span { animation: pulse 1.4s infinite; }
-    .dots span:nth-child(2) { animation-delay: .2s; }
-    .dots span:nth-child(3) { animation-delay: .4s; }
+
+    .loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 20px;
+      animation: loaderIn 0.5s ease;
+    }
+    @keyframes loaderIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .loader-ring {
+      width: 64px;
+      height: 64px;
+      animation: spin 1.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-msg {
+      margin-top: 28px;
+      font-size: 15px;
+      color: var(--muted);
+      text-align: center;
+      min-height: 24px;
+      transition: opacity 0.4s ease;
+    }
+    .loader-msg.fade { opacity: 0; }
+    .loader-progress {
+      margin-top: 24px;
+      width: 200px;
+      height: 3px;
+      border-radius: 3px;
+      background: var(--line);
+      overflow: hidden;
+    }
+    .loader-bar {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--pink), var(--pink-deep));
+      width: 0%;
+      transition: width 0.6s ease;
+    }
   </style>
 </head>
 <body>
@@ -215,6 +254,21 @@
 
       <button class="primary" id="submit" type="submit" disabled>Decode</button>
     </form>
+
+    <section id="loading" class="loader hidden">
+      <svg class="loader-ring" viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="var(--pink-deep)"/>
+            <stop offset="100%" stop-color="var(--pink)" stop-opacity="0.2"/>
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="28" fill="none" stroke="var(--line)" stroke-width="3"/>
+        <circle cx="32" cy="32" r="28" fill="none" stroke="url(#lg)" stroke-width="3" stroke-linecap="round" stroke-dasharray="120 56"/>
+      </svg>
+      <p class="loader-msg" id="loader-msg">reading what you gave me...</p>
+      <div class="loader-progress"><div class="loader-bar" id="loader-bar"></div></div>
+    </section>
 
     <div id="notice" class="notice hidden"></div>
     <section id="results" class="results"></section>
@@ -395,12 +449,53 @@
       query.focus();
     }
 
+    const loading = document.getElementById('loading');
+    const loaderMsg = document.getElementById('loader-msg');
+    const loaderBar = document.getElementById('loader-bar');
+    const LOADER_MSGS = [
+      'reading what you gave me...',
+      'looking up each ingredient...',
+      'figuring out what everything does...',
+      'writing it all in plain english...',
+    ];
+    let loaderInterval = null;
+
+    function startLoader() {
+      let idx = 0;
+      loaderMsg.textContent = LOADER_MSGS[0];
+      loaderMsg.classList.remove('fade');
+      loaderBar.style.width = '0%';
+      form.classList.add('hidden');
+      loading.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      requestAnimationFrame(() => { loaderBar.style.width = '15%'; });
+
+      loaderInterval = setInterval(() => {
+        idx++;
+        if (idx >= LOADER_MSGS.length) idx = 0;
+        loaderMsg.classList.add('fade');
+        setTimeout(() => {
+          loaderMsg.textContent = LOADER_MSGS[idx];
+          loaderMsg.classList.remove('fade');
+        }, 400);
+        const pct = Math.min(15 + idx * 22, 85);
+        loaderBar.style.width = pct + '%';
+      }, 4000);
+    }
+
+    function stopLoader() {
+      clearInterval(loaderInterval);
+      loaderInterval = null;
+      loading.classList.add('hidden');
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
-      submit.innerHTML = 'Decoding<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
       notice.classList.add('hidden');
       results.replaceChildren();
+      startLoader();
 
       try {
         const response = await fetch('/api/decode', {
@@ -411,15 +506,20 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
 
+        loaderBar.style.width = '100%';
+        await new Promise(r => setTimeout(r, 400));
+        stopLoader();
+
         if (data.demo) {
           showNotice('Demo mode: this is sample layout only. Connect the OpenAI key to see real breakdowns.');
         }
         renderBreakdown(data);
-        form.classList.add('hidden');
       } catch (err) {
+        stopLoader();
+        form.classList.remove('hidden');
         showNotice(err.message, true);
       } finally {
-        submit.innerHTML = 'Decode';
+        submit.textContent = 'Decode';
         refreshSubmit();
       }
     });
