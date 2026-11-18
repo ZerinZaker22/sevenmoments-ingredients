@@ -203,8 +203,8 @@
             <path d="M12 44 L24 30 L32 38 L38 32 L46 44 Z" fill="url(#g)"/>
           </svg>
           <p class="drop-text">Drop your image here, or <span class="browse">browse</span></p>
-          <p class="drop-hint">Supports: JPG, PNG, WEBP</p>
-          <input type="file" id="photo" accept="image/jpeg,image/png,image/webp" hidden>
+          <p class="drop-hint">Supports: JPG, PNG, WEBP, AVIF</p>
+          <input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/avif" hidden>
         </div>
         <p class="photo-status" id="photo-status"></p>
       </div>
@@ -218,7 +218,7 @@
 
   <script>
     const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
-    const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 
     const form = document.getElementById('decode-form');
     const query = document.getElementById('query');
