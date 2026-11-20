@@ -205,7 +205,31 @@ async function lookupProduct(query) {
   }
 }
 
-async function searchProductIngredients(apiKey, productName) {
+function parseIngredientsFromText(text) {
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.found && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
+        return parsed.ingredients.map((n) => String(n).trim()).filter(Boolean).slice(0, MAX_INGREDIENTS);
+      }
+    }
+  } catch {}
+  const listMatch = text.match(/(?:ingredients?|INCI)[:\s]*([A-Z][a-zA-Z\s/()-]+(?:,\s*[A-Z][a-zA-Z\s/()-]+){4,})/);
+  if (listMatch) {
+    return listMatch[1].split(',').map((s) => s.trim()).filter((s) => s.length > 1 && s.length < 80).slice(0, MAX_INGREDIENTS);
+  }
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const commaItems = line.split(',').map((s) => s.trim()).filter(Boolean);
+    if (commaItems.length >= 5 && commaItems.every((s) => s.length < 80 && /^[A-Z]/.test(s))) {
+      return commaItems.slice(0, MAX_INGREDIENTS);
+    }
+  }
+  return null;
+}
+
+async function webSearchIngredients(apiKey, query) {
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -215,8 +239,8 @@ async function searchProductIngredients(apiKey, productName) {
       },
       body: JSON.stringify({
         model: MODEL,
-        tools: [{ type: 'web_search', search_context_size: 'low' }],
-        input: `Find the full ingredient list for the skincare product "${productName}". Return ONLY valid JSON, no other text: {"found": true, "ingredients": ["Water", "Glycerin", ...]} or {"found": false}. Do not make up ingredients.`,
+        tools: [{ type: 'web_search', search_context_size: 'high' }],
+        input: query,
       }),
       signal: AbortSignal.timeout(30000),
     });
@@ -225,14 +249,41 @@ async function searchProductIngredients(apiKey, productName) {
     const msg = (data.output || []).find((item) => item.type === 'message');
     const text = (msg && msg.content && msg.content[0] && msg.content[0].text) || '';
     if (!text) return null;
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (!parsed.found || !Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) return null;
-    return parsed.ingredients.map((name) => String(name).trim()).filter(Boolean).slice(0, MAX_INGREDIENTS);
+    return parseIngredientsFromText(text);
   } catch {
     return null;
   }
+}
+
+async function extractIngredientsFromName(apiKey, productName) {
+  const parsed = await callOpenAI(apiKey, [
+    { role: 'system', content: `You extract ingredient names from beauty product names. Given a product name, identify every cosmetic or skincare ingredient mentioned or abbreviated in it. Expand abbreviations (TXA = Tranexamic Acid, HA = Hyaluronic Acid, BHA = Salicylic Acid, AHA = Glycolic Acid, Vit C = Ascorbic Acid). Return JSON: {"ingredients": ["Arbutin", "Tranexamic Acid"]} or {"ingredients": []} if no ingredients are identifiable. Only list real cosmetic ingredients, not brand names or product types.` },
+    { role: 'user', content: productName },
+  ]);
+  if (!Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) return null;
+  return parsed.ingredients.map((n) => String(n).trim()).filter(Boolean).slice(0, 20);
+}
+
+function simplifyProductName(name) {
+  return name
+    .replace(/\d+(\.\d+)?%?/g, '')
+    .replace(/[+]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+async function searchProductIngredients(apiKey, productName) {
+  const result = await webSearchIngredients(apiKey,
+    `Search the web for the full ingredient list (INCI list) of "${productName}". List every ingredient as printed on the product packaging or on a retailer or review site. Format: {"found": true, "ingredients": ["Water", "Glycerin", ...]} or {"found": false}. Do not make up ingredients.`
+  );
+  if (result) return result;
+  const simple = simplifyProductName(productName);
+  if (simple && simple.toLowerCase() !== productName.toLowerCase()) {
+    return await webSearchIngredients(apiKey,
+      `"${simple}" full ingredients list INCI. List all ingredients for this beauty product. Format: {"found": true, "ingredients": ["Water", "Glycerin", ...]} or {"found": false}.`
+    );
+  }
+  return null;
 }
 
 function sampleBreakdown(ingredients) {
@@ -271,7 +322,7 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
   return json({ demo: false, ...meta, ...breakdown });
 }
 
-const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full product name, with spelling corrected. The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
+const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
 
 Respond only with JSON: {"brand": "...", "name": "..."}`;
 
@@ -370,21 +421,34 @@ export async function onRequestPost({ request, env }) {
       }
     } catch {}
 
-    if (info.name && info.name.toLowerCase() !== text.toLowerCase()) {
+    if (info.name) {
       const corrected = await lookupProduct(info.name);
       const brandWord = info.brand.toLowerCase().split(/\s+/)[0] || '';
       const brandMatches = !brandWord || corrected?.name.toLowerCase().includes(brandWord);
       if (corrected && brandMatches && corrected.ingredients.length > 0) {
         return await breakdownResponse(apiKey, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
       }
-      const webCorrected = await searchProductIngredients(apiKey, info.name);
-      if (webCorrected && webCorrected.length > 0) {
-        return await breakdownResponse(apiKey, { ingredients: webCorrected, productName: info.name, source: 'web' });
+      if (simplifyProductName(info.name).toLowerCase() !== simplifyProductName(text).toLowerCase()) {
+        const webCorrected = await searchProductIngredients(apiKey, info.name);
+        if (webCorrected && webCorrected.length > 0) {
+          return await breakdownResponse(apiKey, { ingredients: webCorrected, productName: info.name, source: 'web' });
+        }
       }
     }
 
-    if (info.brand) {
+    const inputWords = text.trim().split(/\s+/).length;
+    const brandWords = info.brand ? info.brand.trim().split(/\s+/).length : 0;
+    if (info.brand && inputWords <= brandWords) {
       return json({ error: `i can see this is a ${info.brand} product. please type the full product name, or upload a photo of the ingredient list.` }, 404);
+    }
+
+    if (info.name && inputWords > brandWords + 1) {
+      try {
+        const nameIngredients = await extractIngredientsFromName(apiKey, info.name || text);
+        if (nameIngredients && nameIngredients.length > 0) {
+          return await breakdownResponse(apiKey, { ingredients: nameIngredients, productName: info.name || text, source: 'name' });
+        }
+      } catch {}
     }
 
     return json({ error: NOT_FOUND }, 404);
