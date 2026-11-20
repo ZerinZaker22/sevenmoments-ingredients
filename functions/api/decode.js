@@ -1,6 +1,7 @@
 import { cleanBreakdown, cleanText } from '../../lib/guard.js';
 
 const MODEL = 'gpt-5-nano';
+const SEARCH_MODEL = 'gpt-4o-mini';
 const DAILY_LIMIT = 25;
 const MAX_CHARS = 3000;
 const MAX_INGREDIENTS = 100;
@@ -238,7 +239,7 @@ async function webSearchIngredients(apiKey, query) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: SEARCH_MODEL,
         tools: [{ type: 'web_search', search_context_size: 'high' }],
         input: query,
       }),
