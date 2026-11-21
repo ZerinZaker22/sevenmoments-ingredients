@@ -630,9 +630,9 @@
             <span class="dz-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
             <div>
               <p class="drop-text"><span class="on-mouse">Drop a photo of the ingredient list here, or <span class="browse">browse</span></span><span class="on-touch">Tap to add a photo of the ingredient list</span></p>
-              <p class="drop-hint">JPG, PNG, WEBP or AVIF</p>
+              <p class="drop-hint">Any photo from your phone or computer</p>
             </div>
-            <input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/avif" hidden>
+            <input type="file" id="photo" accept="image/*" hidden>
           </div>
           <p class="photo-status" id="photo-status"></p>
 
@@ -692,7 +692,7 @@
 
   <script>
     const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
-    const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    const IMAGE_NAME = /\.(jpe?g|png|webp|avif|gif|bmp|tiff?|heic|heif)$/i;
     const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const form = document.getElementById('decode-form');
@@ -759,10 +759,11 @@
     }
 
     async function setPhoto(file) {
-      if (!PHOTO_TYPES.includes(file.type)) {
-        showNotice('Please upload a JPG, PNG, WEBP, or AVIF image.', true);
+      if (!(file.type || '').startsWith('image/') && !IMAGE_NAME.test(file.name)) {
+        showNotice('Please upload a photo of the ingredient list.', true);
         return;
       }
+      notice.classList.add('hidden');
       try {
         photoStatus.replaceChildren(document.createTextNode('processing image...'));
         photoData = await compressImage(file);
@@ -774,7 +775,8 @@
         photoStatus.append(clear);
         refreshSubmit();
       } catch {
-        showNotice('Could not read this image. Please try another photo.', true);
+        photoStatus.replaceChildren();
+        showNotice("this photo format can't be opened in this browser. a screenshot of the label, or a JPG or PNG, will work.", true);
       }
     }
 
@@ -999,6 +1001,21 @@
       form.classList.remove('hidden');
     }
 
+    async function sendDecode(body) {
+      try {
+        const response = await fetch('/api/decode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        let data = null;
+        try { data = await response.json(); } catch {}
+        return { response, data };
+      } catch {
+        return { response: null, data: null };
+      }
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
@@ -1008,13 +1025,14 @@
       startLoader();
 
       try {
-        const response = await fetch('/api/decode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: query.value.trim(), image: photoData }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+        const body = JSON.stringify({ text: query.value.trim(), image: photoData });
+        const started = Date.now();
+        let { response, data } = await sendDecode(body);
+        if ((!response || response.status >= 500 || !data) && Date.now() - started < 45000) {
+          ({ response, data } = await sendDecode(body));
+        }
+        if (!response || !data) throw new Error('the connection dropped for a moment. please press decode again.');
+        if (!response.ok) throw new Error(data.error || 'that one took longer than usual. please press decode again.');
 
         loaderBar.style.width = '100%';
         await new Promise(r => setTimeout(r, 400));

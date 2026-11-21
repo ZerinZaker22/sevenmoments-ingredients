@@ -1,11 +1,14 @@
 import { cleanBreakdown, cleanText } from '../../lib/guard.js';
 
 const MODEL = 'gpt-5-nano';
+const FALLBACK_MODEL = 'gpt-4o-mini';
 const SEARCH_MODEL = 'gpt-4o-mini';
 const DAILY_LIMIT = 25;
-const MAX_CHARS = 3000;
+const MAX_CHARS = 6000;
 const MAX_INGREDIENTS = 100;
 const MAX_BODY_BYTES = 6 * 1024 * 1024;
+// Cloudflare drops responses after 100 s, so every request finishes well inside that.
+const REQUEST_BUDGET_MS = 85000;
 const NOT_FOUND = "i don't have this one in my product list. paste the ingredients, or upload a photo of the ingredient list, and i'll break it down.";
 
 const CAVEAT = [
@@ -54,18 +57,30 @@ Respond only with JSON: {"is_ingredient": true or false, "name": "...", "explana
 
 The "name" must be only the ingredient's common name, with no brand, product name, or percentage.`;
 
-const PHOTO_PROMPT = `Read the ingredient list printed on this product photo. Return the ingredient names exactly as printed, in the order printed. If there is no ingredient list in the photo, return an empty list.
+const PHOTO_PROMPT = `Read the ingredient list printed on this product photo. Return each ingredient as its own item in the array, exactly as printed, in the order printed. Ingredients are separated by commas; a long name often wraps onto the next line, so join the wrapped parts into one name (for example "BIOTINOYL" on one line and "TRIPEPTIDE-1" on the next is "BIOTINOYL TRIPEPTIDE-1"). Copy the spelling letter by letter. If the list is printed in more than one language, return it once, in English or INCI names. If there is no ingredient list in the photo, return an empty list.
 
 Respond only with JSON: {"ingredients":["..."]}`;
 
+const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
+
+Respond only with JSON: {"brand": "...", "name": "..."}`;
+
+const NAME_INGREDIENTS_PROMPT = `You extract ingredient names from beauty product names. Given a product name, identify every cosmetic or skincare ingredient mentioned or abbreviated in it. Expand abbreviations (TXA = Tranexamic Acid, HA = Hyaluronic Acid, BHA = Salicylic Acid, AHA = Glycolic Acid, Vit C = Ascorbic Acid). Return JSON: {"ingredients": ["Arbutin", "Tranexamic Acid"]} or {"ingredients": []} if no ingredients are identifiable. Only list real cosmetic ingredients, not brand names or product types.`;
+
 const PARABEN = /paraben/i;
 const SULFATE = /(lauryl|laureth|myreth|cocoyl|oleth)[\w\s.-]*sulf[ao]te/i;
+const LIST_LABEL = /^[\s\S]{0,40}?\b(ingredients?|ingr[ée]dients?|inci|composition)\b[^:\n]{0,30}:\s*/i;
+const SIZE = /^\s*\d+([.,]\d+)?\s*(ml|l|oz|fl\.?\s*oz|g|kg|mg|pcs?|count|ct)\b/i;
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
   });
+}
+
+function timeLeft(ctx) {
+  return ctx.deadline - Date.now();
 }
 
 async function sha256Hex(text) {
@@ -83,14 +98,22 @@ async function takeDailyQuota(env, request) {
   return true;
 }
 
+function cleanIngredientName(name) {
+  return String(name)
+    .replace(/^[\s.*•·\-–]+|[\s.*•·]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function splitIngredients(text) {
   const items = [];
   let depth = 0;
   let current = '';
-  for (const char of text.replace(/\n/g, ',')) {
-    if (char === '(') depth += 1;
-    if (char === ')') depth = Math.max(0, depth - 1);
-    if ((char === ',' || char === ';') && depth === 0) {
+  const body = text.replace(LIST_LABEL, '').replace(/\r/g, '');
+  for (const char of body.replace(/\n/g, ',')) {
+    if (char === '(' || char === '[') depth += 1;
+    if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
+    if ((char === ',' || char === ';' || char === '•' || char === '·' || char === '|') && depth === 0) {
       items.push(current);
       current = '';
     } else {
@@ -98,7 +121,24 @@ function splitIngredients(text) {
     }
   }
   items.push(current);
-  return items.map((item) => item.trim()).filter(Boolean).slice(0, MAX_INGREDIENTS);
+  return items.map(cleanIngredientName).filter((item) => item.length > 1).slice(0, MAX_INGREDIENTS);
+}
+
+function looksLikeList(text) {
+  if (LIST_LABEL.test(text)) return true;
+  if (!/[,;\n•·|]/.test(text)) return false;
+  const items = splitIngredients(text);
+  if (items.length >= 3) return true;
+  if (items.length === 2 && !SIZE.test(items[1])) return true;
+  return false;
+}
+
+function stripSize(text) {
+  return text.split(/[,;|]/).filter((part, i) => i === 0 || !SIZE.test(part)).join(' ').trim();
+}
+
+function nameKey(name) {
+  return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function labelNotes(ingredients) {
@@ -109,46 +149,81 @@ function labelNotes(ingredients) {
   return notes;
 }
 
-async function callOpenAI(apiKey, messages) {
+function parseModelJson(content) {
+  const text = String(content || '').trim();
+  try {
+    return JSON.parse(text);
+  } catch {}
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start !== -1 && end > start) return JSON.parse(text.slice(start, end + 1));
+  throw new Error('bad_json');
+}
+
+async function callOpenAI(apiKey, messages, { model, maxTokens, timeoutMs }) {
+  const body = {
+    model,
+    max_completion_tokens: maxTokens,
+    response_format: { type: 'json_object' },
+    messages,
+  };
+  if (model.startsWith('gpt-5')) body.reasoning_effort = 'minimal';
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: MODEL,
-      reasoning_effort: 'minimal',
-      max_completion_tokens: 1200,
-      response_format: { type: 'json_object' },
-      messages,
-    }),
-    signal: AbortSignal.timeout(30000),
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!response.ok) throw new Error(`openai_${response.status}`);
 
   const data = await response.json();
-  return JSON.parse(data.choices[0].message.content);
+  const choice = data.choices && data.choices[0];
+  if (!choice || !choice.message) throw new Error('no_choice');
+  if (choice.finish_reason === 'length') throw new Error('truncated');
+  return parseModelJson(choice.message.content);
 }
 
-async function requestBreakdown(apiKey, ingredients, productName) {
-  const parsed = await callOpenAI(apiKey, [
+// Tries the main model twice, then a second model, inside the request's time budget.
+async function askAI(apiKey, ctx, messages, { maxTokens = 1200, models = [MODEL, MODEL, FALLBACK_MODEL] } = {}) {
+  let lastError = new Error('out_of_time');
+  let tokens = maxTokens;
+  for (const model of models) {
+    const left = timeLeft(ctx) - 3000;
+    if (left < 5000) break;
+    try {
+      return await callOpenAI(apiKey, messages, { model, maxTokens: tokens, timeoutMs: Math.min(30000, left) });
+    } catch (err) {
+      lastError = err;
+      console.error(`ai call failed (${model}):`, err.message);
+      if (err.message === 'openai_401' || err.message === 'openai_403') break;
+      if (err.message === 'truncated') tokens = Math.min(tokens * 2, 16000);
+    }
+  }
+  throw lastError;
+}
+
+async function requestBreakdown(apiKey, ctx, ingredients, productName, models) {
+  const parsed = await askAI(apiKey, ctx, [
     { role: 'system', content: SYSTEM_PROMPT },
     {
       role: 'user',
       content: `Product name: ${productName || 'not given'}\nIngredient list: ${ingredients.join(', ')}`,
     },
-  ]);
+  ], { maxTokens: Math.min(8000, 1500 + ingredients.length * 90), models });
 
   return {
     intro: String(parsed.intro || ''),
     groups: (Array.isArray(parsed.groups) ? parsed.groups : [])
       .filter((group) => group && group.label && group.explanation && Array.isArray(group.ingredients))
-      .slice(0, 12)
+      .slice(0, 14)
       .map((group) => ({
         label: String(group.label).slice(0, 80),
-        ingredients: group.ingredients.map((name) => String(name).slice(0, 100)).slice(0, 40),
+        ingredients: group.ingredients.map((name) => String(name).slice(0, 100)).slice(0, 60),
         explanation: String(group.explanation).slice(0, 600),
       })),
     worth_knowing: (Array.isArray(parsed.worth_knowing) ? parsed.worth_knowing : [])
@@ -157,25 +232,42 @@ async function requestBreakdown(apiKey, ingredients, productName) {
   };
 }
 
-async function readPhotoIngredients(apiKey, imageDataUrl) {
-  const parsed = await callOpenAI(apiKey, [
-    { role: 'system', content: PHOTO_PROMPT },
-    {
-      role: 'user',
-      content: [{ type: 'image_url', image_url: { url: imageDataUrl, detail: 'auto' } }],
-    },
-  ]);
-  return (Array.isArray(parsed.ingredients) ? parsed.ingredients : [])
-    .map((name) => String(name).trim())
-    .filter(Boolean)
+function parsePhotoList(parsed) {
+  const items = Array.isArray(parsed.ingredients) ? parsed.ingredients : (typeof parsed.ingredients === 'string' ? [parsed.ingredients] : []);
+  return items
+    .flatMap((item) => {
+      const text = String(item);
+      // Printed labels wrap long names onto the next line, so newlines only separate items when there are no commas.
+      if (/[,;•]/.test(text)) return splitIngredients(text.replace(/\s*\n\s*/g, ' '));
+      if (/\n/.test(text)) return splitIngredients(text);
+      return [cleanIngredientName(text)];
+    })
+    .filter((name) => name.length > 1)
     .slice(0, MAX_INGREDIENTS);
 }
 
-async function explainSingleIngredient(apiKey, text) {
-  const parsed = await callOpenAI(apiKey, [
+async function readPhotoIngredients(apiKey, ctx, imageDataUrl) {
+  const messages = [
+    { role: 'system', content: PHOTO_PROMPT },
+    {
+      role: 'user',
+      content: [{ type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }],
+    },
+  ];
+  const first = parsePhotoList(await askAI(apiKey, ctx, messages, { maxTokens: 4000, models: [MODEL, MODEL, FALLBACK_MODEL] }));
+  if (first.length > 0) return first;
+  try {
+    return parsePhotoList(await askAI(apiKey, ctx, messages, { maxTokens: 4000, models: [FALLBACK_MODEL] }));
+  } catch {
+    return [];
+  }
+}
+
+async function explainSingleIngredient(apiKey, ctx, text) {
+  const parsed = await askAI(apiKey, ctx, [
     { role: 'system', content: INGREDIENT_PROMPT },
     { role: 'user', content: text },
-  ]);
+  ], { models: [MODEL, FALLBACK_MODEL] });
   if (!parsed.is_ingredient) return null;
   const explanation = cleanText(parsed.explanation || '');
   if (!explanation) return null;
@@ -187,15 +279,23 @@ async function lookupProduct(query) {
   const words = query.toLowerCase().split(/\s+/).filter((word) => word.length >= 3);
   if (words.length === 0) return null;
   try {
-    const url = `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,brands,ingredients_text`;
+    const url = `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=12&fields=product_name,brands,ingredients_text`;
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!response.ok) return null;
     const data = await response.json();
-    const match = (data.products || []).find((product) => {
-      if (!product.ingredients_text || !product.ingredients_text.trim()) return false;
-      const name = [product.brands, product.product_name].filter(Boolean).join(' ').toLowerCase();
-      return words.every((word) => name.includes(word));
-    });
+    const queryText = query.toLowerCase();
+    // A variant the visitor did not type (an SPF version, a size or number) is a different formula.
+    const candidates = (data.products || [])
+      .filter((product) => product.ingredients_text && product.ingredients_text.trim())
+      .map((product) => {
+        const name = [product.brands, product.product_name].filter(Boolean).join(' ').toLowerCase();
+        const extra = name.split(/[\s,/()-]+/).filter((token) => token && !queryText.includes(token));
+        return { product, name, extra };
+      })
+      .filter(({ name, extra }) => words.every((word) => name.includes(word))
+        && !extra.some((token) => /spf|^\d/.test(token)));
+    candidates.sort((a, b) => a.extra.length - b.extra.length);
+    const match = candidates[0] && candidates[0].product;
     if (!match) return null;
     return {
       name: [match.brands, match.product_name].filter(Boolean).join(' ').slice(0, 120),
@@ -212,7 +312,7 @@ function parseIngredientsFromText(text) {
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       if (parsed.found && Array.isArray(parsed.ingredients) && parsed.ingredients.length > 0) {
-        return parsed.ingredients.map((n) => String(n).trim()).filter(Boolean).slice(0, MAX_INGREDIENTS);
+        return parsed.ingredients.map(cleanIngredientName).filter(Boolean).slice(0, MAX_INGREDIENTS);
       }
     }
   } catch {}
@@ -230,7 +330,9 @@ function parseIngredientsFromText(text) {
   return null;
 }
 
-async function webSearchIngredients(apiKey, query) {
+async function webSearchIngredients(apiKey, ctx, query) {
+  const left = timeLeft(ctx) - 25000;
+  if (left < 8000) return null;
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -243,7 +345,7 @@ async function webSearchIngredients(apiKey, query) {
         tools: [{ type: 'web_search', search_context_size: 'high' }],
         input: query,
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(Math.min(30000, left)),
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -256,11 +358,11 @@ async function webSearchIngredients(apiKey, query) {
   }
 }
 
-async function extractIngredientsFromName(apiKey, productName) {
-  const parsed = await callOpenAI(apiKey, [
-    { role: 'system', content: `You extract ingredient names from beauty product names. Given a product name, identify every cosmetic or skincare ingredient mentioned or abbreviated in it. Expand abbreviations (TXA = Tranexamic Acid, HA = Hyaluronic Acid, BHA = Salicylic Acid, AHA = Glycolic Acid, Vit C = Ascorbic Acid). Return JSON: {"ingredients": ["Arbutin", "Tranexamic Acid"]} or {"ingredients": []} if no ingredients are identifiable. Only list real cosmetic ingredients, not brand names or product types.` },
+async function extractIngredientsFromName(apiKey, ctx, productName) {
+  const parsed = await askAI(apiKey, ctx, [
+    { role: 'system', content: NAME_INGREDIENTS_PROMPT },
     { role: 'user', content: productName },
-  ]);
+  ], { models: [MODEL, FALLBACK_MODEL] });
   if (!Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) return null;
   return parsed.ingredients.map((n) => String(n).trim()).filter(Boolean).slice(0, 20);
 }
@@ -273,14 +375,14 @@ function simplifyProductName(name) {
     .trim();
 }
 
-async function searchProductIngredients(apiKey, productName) {
-  const result = await webSearchIngredients(apiKey,
+async function searchProductIngredients(apiKey, ctx, productName) {
+  const result = await webSearchIngredients(apiKey, ctx,
     `Search the web for the full ingredient list (INCI list) of "${productName}". List every ingredient as printed on the product packaging or on a retailer or review site. Format: {"found": true, "ingredients": ["Water", "Glycerin", ...]} or {"found": false}. Do not make up ingredients.`
   );
   if (result) return result;
   const simple = simplifyProductName(productName);
   if (simple && simple.toLowerCase() !== productName.toLowerCase()) {
-    return await webSearchIngredients(apiKey,
+    return await webSearchIngredients(apiKey, ctx,
       `"${simple}" full ingredients list INCI. List all ingredients for this beauty product. Format: {"found": true, "ingredients": ["Water", "Glycerin", ...]} or {"found": false}.`
     );
   }
@@ -301,7 +403,7 @@ function sampleBreakdown(ingredients) {
   };
 }
 
-async function breakdownResponse(apiKey, { ingredients, productName, source }) {
+async function breakdownResponse(apiKey, ctx, { ingredients, productName, source }) {
   const meta = { mode: 'list', source, productName, ingredientCount: ingredients.length, caveat: CAVEAT };
 
   if (!apiKey) {
@@ -310,36 +412,40 @@ async function breakdownResponse(apiKey, { ingredients, productName, source }) {
     return json({ demo: true, ...meta, ...sample });
   }
 
-  const raw = await requestBreakdown(apiKey, ingredients, productName);
-  const coveredNames = new Set(raw.groups.flatMap((group) => group.ingredients.map((name) => name.trim().toLowerCase())));
-  const missing = ingredients.filter((name) => !coveredNames.has(name.trim().toLowerCase()));
-  if (missing.length > 0) {
-    const retry = await requestBreakdown(apiKey, missing, productName);
-    raw.groups.push(...retry.groups);
+  const raw = await requestBreakdown(apiKey, ctx, ingredients, productName);
+  let breakdown = cleanBreakdown(raw);
+
+  const covered = new Set(breakdown.groups.flatMap((group) => group.ingredients.map(nameKey)));
+  const missing = ingredients.filter((name) => !covered.has(nameKey(name)));
+  if (missing.length > 0 && missing.length < ingredients.length && timeLeft(ctx) > 20000) {
+    try {
+      const retry = await requestBreakdown(apiKey, ctx, missing, productName, [MODEL, FALLBACK_MODEL]);
+      raw.groups.push(...retry.groups);
+      breakdown = cleanBreakdown(raw);
+    } catch {}
   }
-  const breakdown = cleanBreakdown(raw);
-  if (breakdown.groups.length === 0) throw new Error('empty');
+
+  if (breakdown.groups.length === 0) {
+    breakdown = cleanBreakdown(await requestBreakdown(apiKey, ctx, ingredients, productName, [FALLBACK_MODEL]));
+    if (breakdown.groups.length === 0) throw new Error('empty');
+  }
   breakdown.worth_knowing.push(...labelNotes(ingredients));
   return json({ demo: false, ...meta, ...breakdown });
 }
 
-const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
-
-Respond only with JSON: {"brand": "...", "name": "..."}`;
-
-async function identifyProduct(apiKey, text) {
-  const parsed = await callOpenAI(apiKey, [
+async function identifyProduct(apiKey, ctx, text) {
+  const parsed = await askAI(apiKey, ctx, [
     { role: 'system', content: PRODUCT_PROMPT },
     { role: 'user', content: text },
-  ]);
+  ], { models: [MODEL, FALLBACK_MODEL] });
   return {
     brand: String(parsed.brand || '').trim().slice(0, 60),
     name: String(parsed.name || '').trim().slice(0, 120),
   };
 }
 
-async function tryIngredient(apiKey, text) {
-  const single = await explainSingleIngredient(apiKey, text);
+async function tryIngredient(apiKey, ctx, text) {
+  const single = await explainSingleIngredient(apiKey, ctx, text);
   if (!single) return null;
   return json({
     demo: false,
@@ -352,6 +458,7 @@ async function tryIngredient(apiKey, text) {
 }
 
 export async function onRequestPost({ request, env }) {
+  const ctx = { deadline: Date.now() + REQUEST_BUDGET_MS };
   const raw = await request.text();
   if (raw.length > MAX_BODY_BYTES) {
     return json({ error: 'That photo is too large. Please use one under 4 MB.' }, 413);
@@ -364,7 +471,7 @@ export async function onRequestPost({ request, env }) {
     return json({ error: 'Please type a product name or ingredient, or upload a photo.' }, 400);
   }
 
-  const text = typeof payload.text === 'string' ? payload.text.trim() : '';
+  let text = typeof payload.text === 'string' ? payload.text.trim() : '';
   const image = typeof payload.image === 'string' && payload.image.startsWith('data:image/') ? payload.image : '';
   if (!text && !image) {
     return json({ error: 'Please type a product name or ingredient, or upload a photo.' }, 400);
@@ -382,28 +489,29 @@ export async function onRequestPost({ request, env }) {
   try {
     if (image) {
       if (!apiKey) return json({ error: 'Photo reading is available once the openai key is connected.' }, 503);
-      const ingredients = await readPhotoIngredients(apiKey, image);
+      const ingredients = await readPhotoIngredients(apiKey, ctx, image);
       if (ingredients.length === 0) {
         return json({ error: "i couldn't find an ingredient list in this photo. try a closer photo of the list." }, 422);
       }
-      return await breakdownResponse(apiKey, { ingredients, productName: '', source: 'photo' });
+      return await breakdownResponse(apiKey, ctx, { ingredients, productName: '', source: 'photo' });
     }
 
-    if (/[,;\n]/.test(text)) {
-      return await breakdownResponse(apiKey, { ingredients: splitIngredients(text), productName: '', source: 'list' });
+    if (looksLikeList(text)) {
+      return await breakdownResponse(apiKey, ctx, { ingredients: splitIngredients(text), productName: '', source: 'list' });
     }
+    text = stripSize(text) || text;
 
     const singleWord = !/\s/.test(text);
     if (apiKey && singleWord) {
       try {
-        const ingredient = await tryIngredient(apiKey, text);
+        const ingredient = await tryIngredient(apiKey, ctx, text);
         if (ingredient) return ingredient;
       } catch {}
     }
 
     const product = await lookupProduct(text);
     if (product && product.ingredients.length > 0) {
-      return await breakdownResponse(apiKey, { ingredients: product.ingredients, productName: product.name, source: 'product' });
+      return await breakdownResponse(apiKey, ctx, { ingredients: product.ingredients, productName: product.name, source: 'product' });
     }
 
     if (!apiKey) {
@@ -411,28 +519,28 @@ export async function onRequestPost({ request, env }) {
     }
 
     let info = { brand: '', name: '' };
-    try {
-      const [identified, webDirect] = await Promise.all([
-        identifyProduct(apiKey, text),
-        searchProductIngredients(apiKey, text),
-      ]);
-      info = identified;
-      if (webDirect && webDirect.length > 0) {
-        return await breakdownResponse(apiKey, { ingredients: webDirect, productName: info.name || text, source: 'web' });
-      }
-    } catch {}
+    let webDirect = null;
+    const [identified, searched] = await Promise.allSettled([
+      identifyProduct(apiKey, ctx, text),
+      searchProductIngredients(apiKey, ctx, text),
+    ]);
+    if (identified.status === 'fulfilled') info = identified.value;
+    if (searched.status === 'fulfilled') webDirect = searched.value;
+    if (webDirect && webDirect.length > 0) {
+      return await breakdownResponse(apiKey, ctx, { ingredients: webDirect, productName: info.name || text, source: 'web' });
+    }
 
     if (info.name) {
       const corrected = await lookupProduct(info.name);
       const brandWord = info.brand.toLowerCase().split(/\s+/)[0] || '';
       const brandMatches = !brandWord || corrected?.name.toLowerCase().includes(brandWord);
       if (corrected && brandMatches && corrected.ingredients.length > 0) {
-        return await breakdownResponse(apiKey, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
+        return await breakdownResponse(apiKey, ctx, { ingredients: corrected.ingredients, productName: corrected.name, source: 'product' });
       }
       if (simplifyProductName(info.name).toLowerCase() !== simplifyProductName(text).toLowerCase()) {
-        const webCorrected = await searchProductIngredients(apiKey, info.name);
+        const webCorrected = await searchProductIngredients(apiKey, ctx, info.name);
         if (webCorrected && webCorrected.length > 0) {
-          return await breakdownResponse(apiKey, { ingredients: webCorrected, productName: info.name, source: 'web' });
+          return await breakdownResponse(apiKey, ctx, { ingredients: webCorrected, productName: info.name, source: 'web' });
         }
       }
     }
@@ -445,9 +553,9 @@ export async function onRequestPost({ request, env }) {
 
     if (info.name && inputWords > brandWords + 1) {
       try {
-        const nameIngredients = await extractIngredientsFromName(apiKey, info.name || text);
+        const nameIngredients = await extractIngredientsFromName(apiKey, ctx, info.name || text);
         if (nameIngredients && nameIngredients.length > 0) {
-          return await breakdownResponse(apiKey, { ingredients: nameIngredients, productName: info.name || text, source: 'name' });
+          return await breakdownResponse(apiKey, ctx, { ingredients: nameIngredients, productName: info.name || text, source: 'name' });
         }
       } catch {}
     }
@@ -455,6 +563,6 @@ export async function onRequestPost({ request, env }) {
     return json({ error: NOT_FOUND }, 404);
   } catch (err) {
     console.error('decode failed:', err.message);
-    return json({ error: 'We could not decode this right now. Please try again in a moment.' }, 502);
+    return json({ error: 'that one took longer than usual. please press decode again.' }, 502);
   }
 }
