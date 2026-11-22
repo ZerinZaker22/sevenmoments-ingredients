@@ -42,7 +42,7 @@ Never:
 - silicones and pilling, if present: explain it is about what someone layers, not a flaw
 - oils that can feed fungal acne, if present
 - anything commonly layered badly with other products
-Leave the list empty if none apply.
+Leave the list empty if none apply. Write each note as a plain sentence about this product. Only add a note when it is true for these ingredients. Never write a note saying something is absent or not listed, and never copy the bullet wording above as a heading.
 
 Respond only with JSON in this shape:
 {"intro":"...","groups":[{"label":"...","ingredients":["..."],"explanation":"..."}],"worth_knowing":["..."]}`;
@@ -139,6 +139,28 @@ function stripSize(text) {
 
 function nameKey(name) {
   return String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const NOTE_HEADING = /^\s*(fragrance(, if present)?|silicones?( and pilling)?|oils that can feed fungal acne|anything commonly layered badly( with other products)?|layering)\s*[:\-–]\s*/i;
+const ABSENCE = /\b(no|not|isn't|aren't|doesn't|don't|without|none)\b[^.]*\b(listed|present|in (it|this|the list)|call(s)? out|obvious|included|separate)/i;
+
+// The model sometimes echoes the checklist headings or adds "nothing here" notes; keep only real, applicable notes.
+function tidyNotes(notes, ingredients) {
+  const names = ingredients.join(' ').toLowerCase();
+  const hasFragrance = /fragrance|parfum|perfume|aroma/.test(names);
+  const seen = new Set();
+  return notes
+    .map((note) => note.replace(NOTE_HEADING, '').trim())
+    .filter((note) => {
+      const text = note.toLowerCase();
+      if (!note || ABSENCE.test(text)) return false;
+      if (/fragrance|scent|parfum/.test(text) && !hasFragrance) return false;
+      const key = text.replace(/[^a-z]/g, '').slice(0, 40);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((note) => note.charAt(0).toLowerCase() + note.slice(1));
 }
 
 function labelNotes(ingredients) {
@@ -429,6 +451,7 @@ async function breakdownResponse(apiKey, ctx, { ingredients, productName, source
     breakdown = cleanBreakdown(await requestBreakdown(apiKey, ctx, ingredients, productName, [FALLBACK_MODEL]));
     if (breakdown.groups.length === 0) throw new Error('empty');
   }
+  breakdown.worth_knowing = tidyNotes(breakdown.worth_knowing, ingredients);
   breakdown.worth_knowing.push(...labelNotes(ingredients));
   return json({ demo: false, ...meta, ...breakdown });
 }

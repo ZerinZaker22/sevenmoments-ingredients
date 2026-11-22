@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#fc2e98"/>
-  <circle cx="32" cy="32" r="21" fill="#0210f0"/>
-  <path d="M32 15l4.2 12.8L49 32l-12.8 4.2L32 49l-4.2-12.8L15 32l12.8-4.2z" fill="#ffffff"/>
+  <rect width="64" height="64" rx="14" fill="#b9cfdc"/>
+  <rect x="11" y="13" width="42" height="38" fill="#f4efe2" stroke="#0e1a38" stroke-width="2.5"/>
+  <text x="32" y="44" text-anchor="middle" font-family="Didot, 'Bodoni 72', Georgia, serif" font-size="30" font-weight="600" fill="#0e1a38">D</text>
+  <path d="M38 50c4-3 9-4 14-3" fill="none" stroke="#b5577c" stroke-width="2.5" stroke-linecap="round"/>
 </svg>
