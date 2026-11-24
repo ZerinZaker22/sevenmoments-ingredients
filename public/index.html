@@ -238,30 +238,56 @@
       opacity: .35;
     }
     .dropzone {
+      --dash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' rx='20' ry='20' fill='none' stroke='%23b5577c' stroke-width='3' stroke-dasharray='8 7' stroke-linecap='round'/%3E%3C/svg%3E");
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 16px 18px;
-      border: 1.5px dashed var(--rose);
-      border-radius: 18px;
-      background: var(--rose-wash);
+      gap: 18px;
+      padding: 18px 18px 18px 20px;
+      border-radius: 20px;
+      background: var(--dash), linear-gradient(135deg, #fcf3f6 0%, var(--rose-wash) 100%);
       cursor: pointer;
-      transition: background .25s, border-color .25s;
+      transition: background-color .25s, box-shadow .3s var(--ease);
     }
-    .dropzone:hover, .dropzone.dragover { border-style: solid; background: var(--rose-wash-2); }
+    .dropzone:hover { box-shadow: 0 10px 24px -12px rgba(181, 87, 124, .45); }
+    .dropzone.dragover {
+      --dash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' rx='20' ry='20' fill='none' stroke='%230e1a38' stroke-width='3' stroke-dasharray='8 7' stroke-linecap='round'/%3E%3C/svg%3E");
+      background: var(--dash), var(--rose-wash-2);
+    }
     .dropzone:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
     .dz-icon {
+      position: relative;
       display: grid; place-items: center; flex: none;
-      width: 52px; height: 52px; border-radius: 50%;
+      width: 54px; height: 54px; border-radius: 50%;
       background: var(--rose);
-      box-shadow: 2px 2px 0 var(--navy);
-      transition: translate .4s var(--ease-pop), scale .4s var(--ease-pop);
+      box-shadow: 0 8px 16px -6px rgba(181, 87, 124, .55);
+      transition: translate .4s var(--ease-pop);
     }
-    .dz-icon svg { width: 26px; height: 26px; }
-    .dropzone:hover .dz-icon, .dropzone.dragover .dz-icon { translate: 0 -3px; scale: 1.04; }
-    .drop-text { margin: 0; font-weight: 700; font-size: 16px; line-height: 1.3; }
-    .browse { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; text-decoration-color: var(--rose); }
-    .drop-hint { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .dz-icon svg { width: 25px; height: 25px; }
+    .dz-plus {
+      position: absolute; right: -3px; bottom: -3px;
+      display: grid; place-items: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--navy);
+      border: 2px solid var(--paper);
+    }
+    .dz-plus svg { width: 11px; height: 11px; stroke-width: 3; }
+    .dropzone:hover .dz-icon, .dropzone.dragover .dz-icon { translate: 0 -3px; }
+    .dz-copy { flex: 1; min-width: 0; }
+    .drop-text, .drop-hint { text-wrap: balance; }
+    .drop-text { margin: 0; font-weight: 700; font-size: 16.5px; line-height: 1.25; letter-spacing: -.01em; }
+    .drop-hint { margin: 5px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.4; }
+    .dz-pill {
+      flex: none;
+      padding: 9px 18px;
+      border: 1.5px solid var(--navy);
+      border-radius: 999px;
+      background: var(--paper);
+      color: var(--navy);
+      font-size: 14px;
+      font-weight: 700;
+      transition: background .25s, color .25s;
+    }
+    .dropzone:hover .dz-pill { background: var(--navy); color: var(--paper); }
     .photo-status { margin: 10px 0 0; min-height: 20px; color: var(--muted); font-size: 14px; font-weight: 600; }
     .photo-status button {
       margin-left: 8px; padding: 0; border: 0; background: none;
@@ -553,8 +579,9 @@
       label.field { padding-right: 74px; font-size: 16px; }
       .btn { font-size: 18px; padding-left: 22px; }
       .btn-icon { width: 44px; height: 44px; }
-      .dropzone { padding: 14px; gap: 12px; }
-      .dz-icon { width: 46px; height: 46px; }
+      .dropzone { padding: 16px; gap: 14px; }
+      .dz-icon { width: 48px; height: 48px; }
+      .dz-pill { display: none; }
       .ribbon { font-size: 15px; padding: 8px 0; }
       .count { width: 100px; height: 100px; }
       .count b { font-size: 34px; }
@@ -629,11 +656,12 @@
           <div class="or" aria-hidden="true">or</div>
 
           <div class="dropzone" id="dropzone" role="button" tabindex="0">
-            <span class="dz-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
-            <div>
-              <p class="drop-text"><span class="on-mouse">Drop a photo of the ingredient list here, or <span class="browse">browse</span></span><span class="on-touch">Tap to add a photo of the ingredient list</span></p>
-              <p class="drop-hint">Any photo from your phone or computer</p>
+            <span class="dz-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="dz-plus"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></span>
+            <div class="dz-copy">
+              <p class="drop-text"><span class="on-mouse">Add a photo of the label</span><span class="on-touch">Tap to add a photo of the label</span></p>
+              <p class="drop-hint"><span class="on-mouse">Drop it here or browse. Make sure the ingredient list is visible.</span><span class="on-touch">Make sure the ingredient list is visible.</span></p>
             </div>
+            <span class="dz-pill on-mouse" aria-hidden="true">Browse</span>
             <input type="file" id="photo" accept="image/*" hidden>
           </div>
           <p class="photo-status" id="photo-status"></p>
