@@ -3,62 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Ingredient Decoder by Seven Moments</title>
+  <title>the ingredient decoder by seven moments</title>
   <meta name="description" content="Type a product name, paste an ingredient list or upload a photo of the label. Get a plain-English breakdown of what every ingredient does.">
-  <meta name="theme-color" content="#b9cfdc">
+  <meta name="theme-color" content="#fc2e98">
   <link rel="canonical" href="https://ingredient-decoder.pages.dev/">
-  <meta property="og:title" content="The Ingredient Decoder by Seven Moments">
+  <meta property="og:title" content="the ingredient decoder by seven moments">
   <meta property="og:description" content="A plain-English breakdown of what every ingredient does.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ingredient-decoder.pages.dev/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Allura&family=Bodoni+Moda:opsz,wght@6..96,400..700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --powder: #b9cfdc;
-      --powder-deep: #8eaec4;
-      --powder-light: #d9e5ed;
-      --cream: #f4efe2;
-      --cream-light: #fbf8f1;
-      --ink: #0e1a38;
-      --muted: #3c4a66;
-      --rose: #b5577c;
-      --olive: #8f8137;
-      --olive-ink: #6b5f22;
-      --shadow: 0 1px 1px rgba(14, 26, 56, .08), 3px 5px 7px rgba(14, 26, 56, .1), 10px 16px 30px rgba(14, 26, 56, .16);
+      --pink: #fc2e98;
+      --blue: #0210f0;
+      --white: #ffffff;
+      --blue-muted: #3945f3;
+      --pink-wash: #fff0f7;
+      --pink-wash-2: #ffe1f0;
       --ease: cubic-bezier(.22, 1, .36, 1);
-      --gutter: clamp(18px, 4vw, 56px);
-      --serif: "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
-      --sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .1 0 0 0 0 .22 0 0 0 .55 -.18'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      --grain-soft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .32 -.12'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      --ease-pop: cubic-bezier(.25, .9, .3, 1.04);
+      --gutter: clamp(16px, 4vw, 56px);
+      --burst: polygon(100.0% 50.0%,99.3% 52.2%,97.5% 54.2%,95.2% 56.0%,93.2% 57.6%,92.0% 59.3%,92.0% 61.3%,92.9% 63.5%,94.3% 66.1%,95.2% 68.7%,95.3% 71.1%,94.1% 72.9%,91.8% 74.1%,89.0% 74.8%,86.2% 75.4%,84.2% 76.2%,83.1% 77.8%,82.8% 80.1%,82.9% 82.9%,82.8% 85.8%,82.0% 88.1%,80.4% 89.6%,78.0% 89.9%,75.1% 89.5%,72.4% 88.8%,70.0% 88.4%,68.2% 89.0%,66.8% 90.7%,65.7% 93.1%,64.4% 95.8%,62.8% 97.8%,60.8% 98.8%,58.5% 98.4%,56.2% 97.0%,53.9% 95.1%,51.9% 93.6%,50.0% 93.0%,48.1% 93.6%,46.1% 95.1%,43.8% 97.0%,41.5% 98.4%,39.2% 98.8%,37.2% 97.8%,35.6% 95.8%,34.3% 93.1%,33.2% 90.7%,31.8% 89.0%,30.0% 88.4%,27.6% 88.8%,24.9% 89.5%,22.0% 89.9%,19.6% 89.6%,18.0% 88.1%,17.2% 85.8%,17.1% 82.9%,17.2% 80.1%,16.9% 77.8%,15.8% 76.2%,13.8% 75.4%,11.0% 74.8%,8.2% 74.1%,5.9% 72.9%,4.7% 71.1%,4.8% 68.7%,5.7% 66.1%,7.1% 63.5%,8.0% 61.3%,8.0% 59.3%,6.8% 57.6%,4.8% 56.0%,2.5% 54.2%,0.7% 52.2%,0.0% 50.0%,0.7% 47.8%,2.5% 45.8%,4.8% 44.0%,6.8% 42.4%,8.0% 40.7%,8.0% 38.7%,7.1% 36.5%,5.7% 33.9%,4.8% 31.3%,4.7% 28.9%,5.9% 27.1%,8.2% 25.9%,11.0% 25.2%,13.8% 24.6%,15.8% 23.8%,16.9% 22.2%,17.2% 19.9%,17.1% 17.1%,17.2% 14.2%,18.0% 11.9%,19.6% 10.4%,22.0% 10.1%,24.9% 10.5%,27.6% 11.2%,30.0% 11.6%,31.8% 11.0%,33.2% 9.3%,34.3% 6.9%,35.6% 4.2%,37.2% 2.2%,39.2% 1.2%,41.5% 1.6%,43.8% 3.0%,46.1% 4.9%,48.1% 6.4%,50.0% 7.0%,51.9% 6.4%,53.9% 4.9%,56.2% 3.0%,58.5% 1.6%,60.8% 1.2%,62.8% 2.2%,64.4% 4.2%,65.7% 6.9%,66.8% 9.3%,68.2% 11.0%,70.0% 11.6%,72.4% 11.2%,75.1% 10.5%,78.0% 10.1%,80.4% 10.4%,82.0% 11.9%,82.8% 14.2%,82.9% 17.1%,82.8% 19.9%,83.1% 22.2%,84.2% 23.8%,86.2% 24.6%,89.0% 25.2%,91.8% 25.9%,94.1% 27.1%,95.3% 28.9%,95.2% 31.3%,94.3% 33.9%,92.9% 36.5%,92.0% 38.7%,92.0% 40.7%,93.2% 42.4%,95.2% 44.0%,97.5% 45.8%,99.3% 47.8%);
     }
     *, *::before, *::after { box-sizing: border-box; }
-    html { background: var(--powder); -webkit-text-size-adjust: 100%; }
+    html { background: var(--white); -webkit-text-size-adjust: 100%; }
     body {
       margin: 0;
-      background:
-        radial-gradient(1100px 760px at 12% -4%, rgba(255, 255, 255, .38), transparent 62%),
-        radial-gradient(900px 700px at 100% 100%, rgba(14, 26, 56, .07), transparent 65%),
-        var(--grain), var(--powder);
-      color: var(--ink);
-      font-family: var(--sans);
+      background: var(--white);
+      color: var(--blue);
+      font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-optical-sizing: auto;
       font-size: 17px;
-      line-height: 1.55;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       overflow-x: clip;
     }
-    ::selection { background: var(--ink); color: var(--cream); }
-    :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+    ::selection { background: var(--pink); color: var(--white); }
+    :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
     .hidden { display: none !important; }
-    .defs { position: absolute; width: 0; height: 0; overflow: hidden; }
     .skip {
       position: absolute; left: 16px; top: 16px; z-index: 20;
-      padding: 10px 16px; background: var(--cream); color: var(--ink);
-      border: 1.5px solid var(--ink); font-weight: 600; text-decoration: none;
-      translate: 0 -220%;
+      padding: 10px 18px; border-radius: 999px;
+      background: var(--white); color: var(--blue); font-weight: 700; text-decoration: none;
+      translate: 0 -200%;
     }
     .skip:focus { translate: 0 0; }
     .on-touch { display: none; }
@@ -67,442 +57,580 @@
       .on-mouse { display: none; }
     }
 
-    .paper {
-      background: var(--grain-soft), var(--cream);
-      border: 1.5px solid var(--ink);
-      box-shadow: var(--shadow);
-    }
-    .tag {
-      display: inline-block;
-      margin: 0;
-      padding: 7px 14px 6px 17px;
-      border: 1.5px solid var(--ink);
-      background: var(--grain-soft), var(--cream);
-      font-size: 12.5px;
-      font-weight: 600;
-      letter-spacing: .3em;
-      text-transform: uppercase;
-      line-height: 1.2;
-    }
-
-    /* ---------- collage textures ---------- */
-    .collage { position: absolute; pointer-events: none; overflow: visible; }
-    .lace { opacity: .5; }
-    .lace-tr { top: -70px; right: -80px; width: clamp(240px, 30vw, 440px); }
-    .lace-bl { bottom: -170px; left: -120px; width: clamp(220px, 26vw, 380px); rotate: 180deg; }
-    .lace-res { top: 40px; right: -120px; width: clamp(200px, 24vw, 340px); opacity: .35; }
-    .cloud { width: clamp(380px, 46vw, 720px); top: 8%; right: -14%; }
-
     /* ---------- hero ---------- */
     .hero {
       position: relative;
-      padding: clamp(40px, 7vw, 104px) var(--gutter) clamp(64px, 8vw, 112px);
+      background: var(--pink);
+      color: var(--white);
+      padding: clamp(40px, 6vw, 88px) var(--gutter) clamp(88px, 10vw, 140px);
       overflow: clip;
+    }
+    .doodles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .hero::after {
+      content: "";
+      position: absolute; left: 0; right: 0; bottom: -1px; height: 22px;
+      background: radial-gradient(circle at 50% 100%, var(--white) 13px, transparent 13.5px) 0 100% / 36px 22px repeat-x;
     }
     .hero-inner {
       position: relative;
-      z-index: 1;
-      max-width: 1180px;
+      max-width: 1240px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
-      gap: clamp(40px, 6vw, 96px);
-      align-items: start;
+      grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+      gap: clamp(40px, 5vw, 80px);
+      align-items: center;
     }
-    .masthead { position: relative; }
     .headline {
-      position: relative;
-      margin: 18px 0 0;
-      font-family: var(--serif);
-      font-optical-sizing: auto;
-      font-weight: 560;
-      font-size: clamp(44px, 5.1vw, 78px);
-      line-height: 1;
-      letter-spacing: -.02em;
+      margin: 0;
+      font-weight: 700;
+      font-size: clamp(56px, 7.1vw, 104px);
+      line-height: .92;
+      letter-spacing: -.04em;
     }
-    .headline .label {
+    .headline .line { display: block; }
+    .line-1 { display: flex !important; align-items: center; gap: .14em; }
+    .squiggle { width: 2.1em; height: .42em; flex: none; margin-top: .12em; overflow: visible; }
+    .squiggle path { fill: none; stroke: var(--white); stroke-width: 6.5; stroke-linecap: round; stroke-linejoin: round; }
+    .line-1 .spark { width: .42em; height: .42em; flex: none; fill: var(--blue); margin-top: -.3em; }
+    .line-3 { margin-top: .1em; }
+    .box {
       display: inline-block;
-      white-space: nowrap;
-      padding: .1em .26em .06em .2em;
-      border: 1.5px solid var(--ink);
-      background: var(--grain-soft), var(--cream);
-      box-shadow: var(--shadow);
+      padding: .02em .16em .1em;
+      border-radius: .14em;
+      background: var(--blue);
+      color: var(--white);
+      rotate: -1.5deg;
+      box-shadow: .045em .045em 0 var(--white);
     }
-    .headline .label + .label { display: table; margin-top: -1.5px; }
-    .script {
-      position: absolute;
-      font-family: "Allura", "Snell Roundhand", cursive;
-      font-weight: 400;
-      color: var(--rose);
-      line-height: 1;
-      letter-spacing: 0;
-      rotate: -7deg;
-      pointer-events: none;
-      white-space: nowrap;
+    .by {
+      display: inline-block;
+      margin: clamp(24px, 2.6vw, 32px) 0 0;
+      padding: 8px 18px 8px 20px;
+      border-radius: 999px;
+      background: var(--white);
+      color: var(--blue);
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
     }
-    .headline .script { left: 1.5em; top: 100%; margin-top: -.3em; font-size: .78em; }
     .lede {
-      margin: clamp(64px, 6.4vw, 96px) 0 0;
-      max-width: 25em;
-      font-family: var(--serif);
-      font-size: clamp(19px, 1.6vw, 22px);
-      line-height: 1.4;
-      letter-spacing: -.005em;
+      margin: 22px 0 0;
+      max-width: 27ch;
+      font-size: clamp(20px, 1.7vw, 24px);
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -.01em;
     }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 10px;
+      margin: 26px 0 0;
+      padding: 0;
+      list-style: none;
+      max-width: 520px;
+    }
+    .chips li {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 16px 6px 6px;
+      border-radius: 999px;
+      background: var(--white);
+      color: var(--blue);
+      font-size: 15px;
+      font-weight: 600;
+      rotate: var(--r, 0deg);
+      box-shadow: 2px 2px 0 var(--blue);
+    }
+    .chips li:nth-child(1) { --r: -1.2deg; }
+    .chips li:nth-child(2) { --r: .8deg; }
+    .chips li:nth-child(3) { --r: -.6deg; }
+    .chips li:nth-child(4) { --r: 1deg; }
+    .chip-icon {
+      display: grid; place-items: center;
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--blue);
+    }
+    .chip-icon svg, .field-icon svg, .dz-icon svg, .btn-icon svg, .sticker-icon svg {
+      fill: none; stroke: var(--white); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .chip-icon svg { width: 17px; height: 17px; }
 
-    /* ---------- tool ---------- */
-    .tool { position: relative; max-width: 540px; width: 100%; justify-self: end; scroll-margin-top: 24px; }
-    .box { padding: clamp(18px, 2.2vw, 26px); }
-    .box + .box { margin-top: 10px; }
-    label.field { display: block; margin-bottom: 12px; font-size: 16px; font-weight: 600; }
+    /* ---------- tool card ---------- */
+    .tool {
+      position: relative;
+      padding: clamp(22px, 2.6vw, 34px);
+      border: 2px solid var(--blue);
+      border-radius: 24px;
+      background: var(--white);
+      color: var(--blue);
+      box-shadow: 7px 7px 0 var(--blue);
+      scroll-margin-top: 24px;
+    }
+    .badge {
+      position: absolute;
+      top: -54px; right: -40px;
+      width: 118px; height: 118px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .badge-spin {
+      width: 100%; height: 100%;
+      background: var(--blue);
+      clip-path: var(--burst);
+    }
+    .badge-spin svg { width: 100%; height: 100%; display: block; }
+    .badge-spin text { fill: var(--white); font-family: inherit; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; }
+    .badge-core {
+      position: absolute; inset: 0; margin: auto;
+      width: 46px; height: 46px; fill: var(--pink);
+    }
+    label.field {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-right: 84px;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+    .field-icon {
+      display: grid; place-items: center; flex: none;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--pink);
+    }
+    .field-icon svg { width: 18px; height: 18px; }
     textarea {
       display: block;
       width: 100%;
-      min-height: 124px;
-      padding: 14px 16px;
-      border: 1.5px solid var(--ink);
-      border-radius: 0;
-      background: var(--cream-light);
-      color: var(--ink);
+      min-height: 132px;
+      padding: 16px 18px;
+      border: 1.5px solid var(--blue);
+      border-radius: 16px;
+      background: var(--white);
+      color: var(--blue);
       font: inherit;
       font-size: 17px;
       line-height: 1.5;
       resize: vertical;
-      transition: border-color .2s, box-shadow .3s var(--ease);
+      transition: border-color .2s, box-shadow .25s var(--ease);
     }
-    textarea::placeholder { color: var(--muted); opacity: .8; }
-    textarea:focus { outline: none; border-color: var(--olive-ink); box-shadow: 0 0 0 3px rgba(143, 129, 55, .28); }
-    .hint { margin: 12px 0 0; color: var(--muted); font-size: 14.5px; line-height: 1.45; }
+    textarea::placeholder { color: var(--blue-muted); opacity: .8; }
+    textarea:focus { outline: none; border-color: var(--pink); box-shadow: 0 0 0 5px var(--pink-wash-2); }
+    .hint { margin: 10px 0 0; color: var(--blue-muted); font-size: 14px; line-height: 1.45; }
+    .or {
+      display: flex; align-items: center; gap: 12px;
+      margin: 18px 0;
+      color: var(--blue-muted); font-size: 14px; font-weight: 800;
+    }
+    .or::before, .or::after {
+      content: ""; flex: 1; height: 2px;
+      background: repeating-linear-gradient(90deg, var(--blue) 0 6px, transparent 6px 12px);
+      opacity: .35;
+    }
     .dropzone {
       display: flex;
       align-items: center;
-      gap: 18px;
-      padding: 18px;
-      border: 1.5px dashed var(--olive-ink);
+      gap: 16px;
+      padding: 16px 18px;
+      border: 1.5px dashed var(--pink);
+      border-radius: 18px;
+      background: var(--pink-wash);
       cursor: pointer;
       transition: background .25s, border-color .25s;
     }
-    .dropzone:hover, .dropzone.dragover { border-style: solid; background: rgba(143, 129, 55, .08); }
-    .dz-icon { flex: none; width: 54px; height: 54px; transition: translate .35s var(--ease); }
-    .dz-icon svg { width: 100%; height: 100%; fill: none; stroke: var(--olive-ink); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .dropzone:hover .dz-icon { translate: 0 -3px; }
-    .drop-text { margin: 0; font-family: var(--serif); font-size: 21px; line-height: 1.2; }
-    .browse { color: var(--olive-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-    .drop-hint { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
-    .photo-status { margin: 10px 0 0; min-height: 0; color: var(--muted); font-size: 14px; font-weight: 500; }
-    .photo-status:empty { display: none; }
+    .dropzone:hover, .dropzone.dragover { border-style: solid; background: var(--pink-wash-2); }
+    .dropzone:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+    .dz-icon {
+      display: grid; place-items: center; flex: none;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 2px 2px 0 var(--blue);
+      transition: translate .4s var(--ease-pop), scale .4s var(--ease-pop);
+    }
+    .dz-icon svg { width: 26px; height: 26px; }
+    .dropzone:hover .dz-icon, .dropzone.dragover .dz-icon { translate: 0 -3px; scale: 1.04; }
+    .drop-text { margin: 0; font-weight: 700; font-size: 16px; line-height: 1.3; }
+    .browse { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; text-decoration-color: var(--pink); }
+    .drop-hint { margin: 4px 0 0; color: var(--blue-muted); font-size: 13px; }
+    .photo-status { margin: 10px 0 0; min-height: 20px; color: var(--blue-muted); font-size: 14px; font-weight: 600; }
     .photo-status button {
       margin-left: 8px; padding: 0; border: 0; background: none;
-      color: var(--olive-ink); font: inherit; font-weight: 600;
-      text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+      color: var(--blue); font: inherit; font-weight: 800;
+      text-decoration: underline; text-decoration-color: var(--pink); text-decoration-thickness: 2px;
+      cursor: pointer;
     }
 
     .btn {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 12px;
       width: 100%;
-      margin-top: 10px;
-      padding: 14px 16px 14px 26px;
-      border: 1.5px solid var(--ink);
-      border-radius: 0;
-      background: var(--ink);
-      color: var(--cream);
-      font-family: var(--serif);
-      font-size: clamp(26px, 2.6vw, 34px);
-      font-weight: 560;
-      letter-spacing: .02em;
-      text-transform: uppercase;
-      line-height: 1;
+      margin-top: 14px;
+      padding: 8px 8px 8px 28px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--blue);
+      color: var(--white);
+      font: inherit;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0;
       cursor: pointer;
-      box-shadow: var(--shadow);
-      transition: translate .35s var(--ease), box-shadow .35s var(--ease), opacity .2s;
+      box-shadow: 0 5px 0 var(--pink);
+      transition: translate .3s var(--ease-pop), box-shadow .3s var(--ease-pop), opacity .2s;
     }
     .btn-icon {
       display: grid; place-items: center; flex: none;
-      width: 54px; height: 54px; border-radius: 50%;
-      background: var(--olive);
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--pink);
+      transition: rotate .45s var(--ease-pop);
     }
-    .btn-icon svg { width: 24px; height: 24px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: translate .35s var(--ease); }
-    .btn:not(:disabled):hover { translate: 0 -2px; box-shadow: 6px 10px 20px rgba(14, 26, 56, .26); }
-    .btn:not(:disabled):hover .btn-icon svg { translate: 4px 0; }
-    .btn:not(:disabled):active { translate: 0 1px; box-shadow: 2px 3px 8px rgba(14, 26, 56, .2); transition-duration: .1s; }
-    .btn:disabled { cursor: not-allowed; }
-    .btn:disabled > span { opacity: .55; }
-    .btn.small { font-size: clamp(20px, 2vw, 24px); }
-    .btn.small .btn-icon { width: 44px; height: 44px; }
+    .btn-icon svg { width: 22px; height: 22px; stroke-width: 2.6; transition: translate .35s var(--ease-pop); }
+    .btn:not(:disabled):hover { translate: 0 -2px; box-shadow: 0 7px 0 var(--pink); }
+    .btn:not(:disabled):hover .btn-icon svg { translate: 3px 0; }
+    .btn:not(:disabled):active { translate: 0 5px; box-shadow: 0 1px 0 var(--pink); transition-duration: .08s; }
+    .btn:disabled { cursor: not-allowed; box-shadow: 0 5px 0 var(--pink-wash-2); }
+    .btn:disabled > span { opacity: .5; }
 
     .notice {
-      margin-top: 10px;
-      padding: 14px 18px;
-      border: 1.5px solid var(--ink);
-      border-left: 6px solid var(--rose);
-      background: var(--grain-soft), var(--cream);
-      color: var(--ink);
-      font-size: 15.5px;
+      margin-top: 18px;
+      padding: 14px 16px;
+      border: 1.5px solid var(--blue);
+      border-left-width: 6px;
+      border-radius: 16px;
+      background: var(--white);
+      color: var(--blue);
+      font-size: 15px;
+      font-weight: 600;
       line-height: 1.45;
-      box-shadow: var(--shadow);
+    }
+    .notice.error { border-color: var(--pink); }
+
+    .loader { display: flex; flex-direction: column; align-items: center; padding: 44px 8px 36px; text-align: center; }
+    .loader-sticker {
+      position: relative;
+      width: 104px; height: 104px;
+    }
+    .loader-sticker .burst { position: absolute; inset: 0; background: var(--blue); clip-path: var(--burst); animation: spin 6s linear infinite; }
+    .loader-sticker svg { position: absolute; inset: 0; margin: auto; width: 44px; height: 44px; fill: var(--pink); animation: pulse 1.2s var(--ease) infinite alternate; }
+    .loader-msg { margin: 26px 0 0; min-height: 26px; font-size: 18px; font-weight: 700; transition: opacity .35s ease; }
+    .loader-msg.fade { opacity: 0; }
+    .loader-progress {
+      width: min(260px, 80%); height: 14px; margin-top: 18px;
+      border: 2.5px solid var(--blue); border-radius: 999px;
+      overflow: hidden; background: var(--white);
+    }
+    .loader-bar {
+      width: 0%; height: 100%;
+      background: repeating-linear-gradient(-45deg, var(--pink) 0 8px, var(--pink-wash-2) 8px 14px);
+      background-size: 40px 100%;
+      transition: width .6s var(--ease);
+      animation: stripes 1s linear infinite;
     }
 
-    .loader { display: flex; flex-direction: column; align-items: center; padding: 52px 24px 44px; text-align: center; }
-    .loader-ring { width: 72px; height: 72px; animation: spin 2.4s linear infinite; }
-    .loader-ring circle { fill: none; stroke-width: 1.5; }
-    .loader-msg { margin: 26px 0 0; min-height: 30px; font-family: var(--serif); font-size: 22px; transition: opacity .35s ease; }
-    .loader-msg.fade { opacity: 0; }
-    .loader-progress { width: min(260px, 80%); height: 2px; margin-top: 18px; background: rgba(14, 26, 56, .18); overflow: hidden; }
-    .loader-bar { width: 0%; height: 100%; background: var(--ink); transition: width .6s var(--ease); }
+    /* ---------- ribbons ---------- */
+    .ribbons {
+      position: relative;
+      z-index: 3;
+      height: clamp(100px, 9vw, 126px);
+      margin-top: -30px;
+      overflow-x: clip;
+    }
+    .ribbon {
+      position: absolute;
+      left: -5%;
+      width: 110%;
+      padding: 9px 0;
+      border-block: 2px solid var(--white);
+      color: var(--white);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .ribbon-blue { top: 10px; background: var(--blue); rotate: -1.6deg; z-index: 2; }
+    .ribbon-pink { top: clamp(50px, 4.6vw, 60px); background: var(--pink); rotate: 1.1deg; }
+    .track { display: flex; width: max-content; animation: marquee 64s linear infinite; }
+    .ribbon-pink .track { animation-direction: reverse; animation-duration: 72s; }
+    .track span { display: inline-flex; align-items: center; }
+    .track i { display: inline-block; width: 13px; height: 13px; margin: 0 26px; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+    .ribbon-blue .track i { background: var(--pink); }
+    .ribbon-pink .track i { background: var(--white); }
 
     /* ---------- results ---------- */
-    .results-section { position: relative; overflow: clip; }
     .results-wrap {
-      position: relative;
-      z-index: 1;
-      max-width: 1180px;
+      max-width: 1240px;
       margin: 0 auto;
-      padding: clamp(24px, 4vw, 48px) var(--gutter) clamp(72px, 8vw, 112px);
+      padding: clamp(40px, 6vw, 80px) var(--gutter) clamp(72px, 8vw, 120px);
       outline: none;
       scroll-margin-top: 8px;
     }
-    .results-head { position: relative; padding-bottom: .5em; }
-    .results-head .tag { display: table; }
-    .results-head .results-title { display: table; }
+    .results-head {
+      display: flex;
+      align-items: center;
+      gap: clamp(16px, 3vw, 36px);
+      flex-wrap: wrap;
+    }
+    .results-kicker { margin: 0 0 8px; font-size: 15px; font-weight: 800; color: var(--pink); letter-spacing: .01em; }
     .results-title {
-      display: inline-block;
-      max-width: 100%;
-      margin: 14px 0 0;
-      padding: .14em .3em .1em .24em;
-      border: 1.5px solid var(--ink);
-      background: var(--grain-soft), var(--cream);
-      box-shadow: var(--shadow);
-      font-family: var(--serif);
-      font-size: clamp(30px, 4.2vw, 56px);
-      font-weight: 600;
-      font-variation-settings: "opsz" 28;
-      line-height: 1.08;
-      letter-spacing: -.01em;
+      margin: 0;
+      max-width: 18ch;
+      font-size: clamp(36px, 5vw, 64px);
+      font-weight: 700;
+      line-height: .98;
+      letter-spacing: -.035em;
       overflow-wrap: anywhere;
     }
-    .results-head .script { left: clamp(24px, 6vw, 90px); top: 100%; margin-top: -.42em; font-size: clamp(50px, 5.4vw, 80px); }
+    .count {
+      display: grid; place-content: center; text-align: center; flex: none;
+      width: 118px; height: 118px;
+      background: var(--blue);
+      color: var(--white);
+      clip-path: var(--burst);
+      rotate: 4deg;
+    }
+    .count b { display: block; font-size: 42px; line-height: .9; letter-spacing: -.04em; }
+    .count span { font-size: 13px; font-weight: 800; }
     .intro {
-      margin: clamp(56px, 6vw, 80px) 0 0;
-      max-width: 34em;
-      font-family: var(--serif);
+      margin: clamp(22px, 3vw, 34px) 0 0;
+      max-width: 44ch;
       font-size: clamp(20px, 1.9vw, 25px);
-      line-height: 1.4;
-    }
-    .cards {
-      margin-top: clamp(28px, 4vw, 48px);
-      columns: 2 330px;
-      column-gap: clamp(18px, 2.4vw, 32px);
-    }
-    .slot { break-inside: avoid; padding-bottom: clamp(18px, 2.4vw, 32px); }
-    .card { padding: 24px 26px 26px; }
-    .card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
-    .card-icon {
-      display: grid; place-items: center; flex: none;
-      width: 44px; height: 44px; border-radius: 50%;
-      border: 1.5px solid var(--olive-ink);
-    }
-    .card-icon svg { width: 22px; height: 22px; fill: none; stroke: var(--olive-ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .card h3 {
-      margin: 0;
-      font-family: var(--serif);
-      font-size: clamp(22px, 2vw, 26px);
-      font-weight: 560;
-      line-height: 1.1;
+      font-weight: 600;
+      line-height: 1.35;
       letter-spacing: -.01em;
     }
-    .card .names {
-      margin: 0 0 14px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid rgba(14, 26, 56, .25);
-      font-size: 12.5px;
-      font-weight: 600;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-      line-height: 1.6;
-      color: var(--muted);
+    .stickers {
+      margin-top: clamp(28px, 4vw, 48px);
+      columns: 2 320px;
+      column-gap: clamp(22px, 3vw, 40px);
     }
-    .card p { margin: 0; }
-    .worth .card { background: var(--grain), var(--ink); color: var(--cream); border-color: var(--ink); }
-    .worth .card-icon { border-color: var(--olive); }
-    .worth .card-icon svg { stroke: #d8cc8a; }
-    .worth ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
-    .worth li { position: relative; padding-left: 22px; }
+    .slot { break-inside: avoid; padding: 26px 6px 18px; }
+    .sticker {
+      position: relative;
+      padding: 26px 26px 24px;
+      border: 2px solid var(--blue);
+      border-radius: 24px;
+      background: var(--white);
+      color: var(--blue);
+      box-shadow: 5px 5px 0 var(--blue);
+      rotate: var(--r, 0deg);
+      transition: rotate .5s var(--ease-pop), translate .5s var(--ease-pop), box-shadow .5s var(--ease-pop);
+    }
+    .sticker:hover { rotate: 0deg; translate: 0 -3px; box-shadow: 7px 8px 0 var(--blue); }
+    .sticker.tone-blue { background: var(--blue); color: var(--white); box-shadow: 5px 5px 0 var(--pink); }
+    .sticker.tone-blue:hover { box-shadow: 7px 8px 0 var(--pink); }
+    .sticker-icon {
+      position: absolute;
+      top: -22px; right: 22px;
+      display: grid; place-items: center;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: var(--pink);
+      border: 2px solid var(--blue);
+      rotate: 6deg;
+    }
+    .tone-blue .sticker-icon { border-color: var(--white); }
+    .sticker-icon svg { width: 25px; height: 25px; stroke-width: 1.9; }
+    .sticker h3 {
+      margin: 0 64px 6px 0;
+      font-size: clamp(22px, 2vw, 26px);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -.025em;
+      color: var(--pink);
+    }
+    .tone-blue h3 { color: var(--white); }
+    .sticker .names { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--blue-muted); line-height: 1.4; }
+    .tone-blue .names { color: rgba(255, 255, 255, .85); }
+    .sticker p { margin: 0; line-height: 1.55; }
+    .worth { margin-top: 18px; }
+    .worth .sticker { background: var(--blue); color: var(--white); box-shadow: 6px 6px 0 var(--pink); rotate: 0deg; padding: 30px clamp(24px, 3vw, 40px); }
+    .worth .sticker:hover { box-shadow: 8px 9px 0 var(--pink); }
+    .worth .sticker-icon { border-color: var(--white); }
+    .worth h3 { color: var(--white); font-size: clamp(26px, 2.6vw, 34px); }
+    .worth ul { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; columns: 1; }
+    .worth li { position: relative; padding-left: 28px; line-height: 1.5; }
     .worth li::before {
-      content: ""; position: absolute; left: 0; top: .62em;
-      width: 7px; height: 7px; background: var(--olive); rotate: 45deg;
+      content: ""; position: absolute; left: 0; top: .28em;
+      width: 16px; height: 16px; background: var(--pink);
+      clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
     }
     .fineprint {
-      margin-top: 8px;
-      padding: 20px 24px;
-      border: 1.5px dashed var(--olive-ink);
-      background: rgba(244, 239, 226, .55);
+      margin-top: 40px;
+      padding: 22px 26px;
+      border: 1.5px dashed var(--blue);
+      border-radius: 20px;
       font-size: 15px;
+      line-height: 1.55;
     }
     .fineprint p { margin: 0 0 6px; }
     .fineprint p:last-child { margin-bottom: 0; }
-    .fineprint p:first-child { font-family: var(--serif); font-size: 19px; }
-    .again { max-width: 440px; margin-top: 28px; }
+    .fineprint p:first-child { font-weight: 800; }
+    .again { max-width: 420px; margin-top: 32px; }
 
     /* ---------- footer ---------- */
-    .foot { position: relative; background: var(--grain), var(--ink); color: var(--cream); margin-top: 24px; }
-    .torn { position: absolute; left: 0; bottom: calc(100% - 2px); width: 100%; height: 26px; display: block; }
-    .torn path { fill: var(--ink); }
-    .foot-inner { max-width: 1180px; margin: 0 auto; padding: clamp(36px, 5vw, 64px) var(--gutter) clamp(28px, 3vw, 40px); }
-    .foot-row { display: flex; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; }
+    .foot { position: relative; background: var(--blue); color: var(--white); margin-top: 40px; }
+    .wave { position: absolute; left: 0; bottom: 100%; width: 100%; height: clamp(36px, 5vw, 70px); display: block; }
+    .wave path { fill: var(--blue); }
+    .foot-inner { max-width: 1240px; margin: 0 auto; padding: clamp(28px, 4vw, 48px) var(--gutter) clamp(20px, 3vw, 36px); overflow: hidden; }
+    .foot-row { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 15px; font-weight: 700; }
     .foot-row p { margin: 0; }
-    .foot-row { padding-bottom: clamp(20px, 2.6vw, 30px); border-bottom: 1px solid rgba(244, 239, 226, .28); }
     .wordmark {
-      margin: clamp(24px, 3.4vw, 44px) 0 0;
-      font-family: var(--serif);
-      font-size: clamp(34px, 12.2vw, 150px);
-      font-weight: 500;
-      line-height: 1;
-      letter-spacing: -.025em;
+      margin: clamp(28px, 4vw, 56px) 0 0;
+      font-size: clamp(34px, 10.4vw, 156px);
+      font-weight: 700;
+      line-height: .9;
+      letter-spacing: -.045em;
       white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: .08em;
     }
-
-    /* ---------- washi tape ---------- */
-    .taped { position: relative; }
-    .taped::before {
-      content: "";
-      position: absolute;
-      z-index: 2;
-      top: -13px;
-      left: 24px;
-      width: 104px;
-      height: 26px;
-      background: var(--grain-soft), rgba(232, 196, 208, .8);
-      rotate: -6deg;
-      clip-path: polygon(0 10%, 4% 0, 8% 12%, 12% 0, 88% 0, 92% 12%, 96% 0, 100% 10%, 100% 90%, 96% 100%, 92% 88%, 88% 100%, 12% 100%, 8% 88%, 4% 100%, 0 90%);
-      pointer-events: none;
-    }
-    .headline .taped::before { width: 1.5em; height: .36em; top: -.18em; }
-    .tape-right::before { left: auto; right: 28px; rotate: 7deg; }
-    .tape-olive::before { background: var(--grain-soft), rgba(216, 207, 160, .85); }
+    .wordmark svg { width: .5em; height: .5em; fill: var(--pink); flex: none; animation: spin 18s linear infinite; }
 
     /* ---------- motion ---------- */
     @keyframes spin { to { rotate: 360deg; } }
-    @keyframes settle { from { opacity: 0; translate: 0 12px; } }
-    @keyframes write { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
-    @keyframes drift { 50% { translate: -10px 8px; } }
+    @keyframes pulse { from { scale: .8; } to { scale: 1.08; } }
+    @keyframes stripes { to { background-position: 40px 0; } }
+    @keyframes marquee { to { translate: -50% 0; } }
+    @keyframes rise { from { opacity: 0; translate: 0 45%; } }
+    @keyframes riseSolid { from { translate: 0 30%; } }
+    @keyframes popSolid { from { scale: .92; } }
+    @keyframes pop { from { opacity: 0; scale: .92; } }
+    @keyframes slap { from { opacity: 0; scale: 1.05; translate: 0 -6px; } }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @keyframes cardIn { from { opacity: 0; translate: 0 36px; } }
 
     @media (prefers-reduced-motion: no-preference) {
       html { scroll-behavior: smooth; }
-      .tag, .headline .label, .lede, .tool { animation: settle .9s var(--ease) backwards; }
-      .masthead .tag { animation-delay: .05s; }
-      .headline .label:nth-child(1) { animation-delay: .12s; }
-      .headline .label:nth-child(2) { animation-delay: .2s; }
-      .lede { animation-delay: .32s; }
-      .tool { animation-delay: .2s; }
-      .script { animation: write 1.1s .55s var(--ease) backwards; }
-      .cloud { animation: drift 18s ease-in-out infinite; }
-      .slot, .results-head, .intro { animation: settle .8s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 60ms); }
+      .headline .line { animation: riseSolid .8s var(--ease) backwards; }
+      .headline .line-2 { animation-delay: .05s; }
+      .headline .line-3 { animation-delay: .1s; }
+      .box { animation: popSolid .7s .1s var(--ease-pop) backwards; }
+      .squiggle path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .9s .4s var(--ease) forwards; }
+      .by { animation: pop .6s .42s var(--ease-pop) backwards; }
+      .lede { animation: rise .7s .2s var(--ease) backwards; }
+      .chips li { animation: pop .55s var(--ease-pop) backwards; }
+      .chips li:nth-child(1) { animation-delay: .5s; }
+      .chips li:nth-child(2) { animation-delay: .56s; }
+      .chips li:nth-child(3) { animation-delay: .62s; }
+      .chips li:nth-child(4) { animation-delay: .68s; }
+      .tool { animation: cardIn .85s .12s var(--ease) backwards; }
+      .badge { animation: pop .7s .7s var(--ease-pop) backwards; }
+      .badge-spin { animation: spin 40s linear infinite; }
+      .sticker, .count { animation: slap .7s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .loader-ring { animation: none; }
+      .track, .wordmark svg, .loader-sticker .burst, .loader-sticker svg, .loader-bar { animation: none; }
+      .track { flex-wrap: wrap; }
       * { transition-duration: .01ms !important; }
     }
 
-    /* ---------- tablet / phone ---------- */
+    /* ---------- phone / tablet ---------- */
     @media (max-width: 900px) {
-      .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 44px; }
-      .tool { justify-self: start; max-width: 600px; }
-      .headline { font-size: clamp(36px, 11.4vw, 84px); }
-      .headline .script { left: 1.3em; }
-      .cloud { width: 78vw; top: 30%; right: -34vw; }
-      .lace-bl { bottom: -60px; }
+      .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 72px; }
+      .headline { font-size: clamp(50px, 14.6vw, 104px); }
+      .lede { max-width: 30ch; }
+      .badge { width: 104px; height: 104px; top: -50px; right: -8px; }
+      .badge-core { width: 36px; height: 36px; }
     }
     @media (max-width: 560px) {
       body { font-size: 16px; }
       .hero { padding-top: 32px; }
-      .lede { max-width: 18em; }
-      .box { padding: 18px; }
-      .dropzone { padding: 14px; gap: 14px; }
+      .chips li { font-size: 14px; }
+      .tool { border-radius: 22px; box-shadow: 5px 5px 0 var(--blue); }
+      label.field { padding-right: 74px; font-size: 16px; }
+      .btn { font-size: 18px; padding-left: 22px; }
+      .btn-icon { width: 44px; height: 44px; }
+      .dropzone { padding: 14px; gap: 12px; }
       .dz-icon { width: 46px; height: 46px; }
-      .drop-text { font-size: 19px; }
-      .btn { padding-left: 20px; }
-      .btn-icon { width: 48px; height: 48px; }
-      .card { padding: 20px 20px 22px; }
-      .tag { letter-spacing: .24em; }
-      .foot-row { letter-spacing: .22em; }
+      .ribbon { font-size: 15px; padding: 8px 0; }
+      .count { width: 100px; height: 100px; }
+      .count b { font-size: 34px; }
+      .sticker { padding: 24px 20px 22px; border-radius: 22px; }
+      .slot { padding-inline: 2px; }
+      .wordmark { font-size: 11.2vw; }
     }
   </style>
 </head>
 <body>
   <a class="skip" href="#query">Skip to the decoder</a>
 
-  <svg class="defs" aria-hidden="true" focusable="false">
-    <defs>
-      <pattern id="net" width="13" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(9)">
-        <path d="M0 0L13 13M13 0L0 13" stroke="#14244a" stroke-width="1.1" fill="none"/>
-        <rect x="4.6" y="4.6" width="3.8" height="3.8" fill="none" stroke="#14244a" stroke-width=".9"/>
-      </pattern>
-      <pattern id="dots" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(20)">
-        <circle cx="3" cy="3" r="1.55" fill="#5f84a1"/>
-      </pattern>
-      <linearGradient id="shade" x1="1" y1="0" x2="0" y2="1">
-        <stop offset=".25" stop-color="#fff" stop-opacity="0"/>
-        <stop offset="1" stop-color="#fff" stop-opacity="1"/>
-      </linearGradient>
-      <mask id="shadeMask"><rect width="400" height="400" fill="url(#shade)"/></mask>
-      <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
-        <feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="3" seed="7"/>
-        <feDisplacementMap in="SourceGraphic" scale="34"/>
-      </filter>
-      <filter id="torn" x="-5%" y="-10%" width="110%" height="120%">
-        <feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="4" seed="3"/>
-        <feDisplacementMap in="SourceGraphic" scale="16"/>
-      </filter>
-    </defs>
-  </svg>
-
   <header class="hero">
-    <svg class="collage lace lace-tr" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
-      <path filter="url(#rough)" fill="url(#net)" d="M60 40C140 0 260 10 330 50C390 85 400 170 370 240C345 300 380 350 330 385C270 420 190 380 130 360C60 340 20 290 25 220C30 160 0 90 60 40Z"/>
-    </svg>
-    <svg class="collage cloud" viewBox="0 0 400 360" aria-hidden="true" focusable="false">
-      <g filter="url(#torn)">
-        <path fill="#eef3f6" d="M40 220C20 170 60 120 115 125C130 75 190 55 235 85C270 45 340 55 355 110C400 120 410 190 375 220C395 270 340 315 290 295C260 340 190 345 160 305C110 330 50 300 60 260C35 255 30 235 40 220Z"/>
-        <path fill="url(#dots)" mask="url(#shadeMask)" d="M40 220C20 170 60 120 115 125C130 75 190 55 235 85C270 45 340 55 355 110C400 120 410 190 375 220C395 270 340 315 290 295C260 340 190 345 160 305C110 330 50 300 60 260C35 255 30 235 40 220Z"/>
-      </g>
-    </svg>
-    <svg class="collage lace lace-bl" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
-      <path filter="url(#rough)" fill="url(#net)" d="M40 300C80 230 150 200 200 150C250 100 300 40 360 30C395 25 400 70 380 110C350 170 300 210 260 260C220 310 160 360 100 375C50 388 10 350 40 300Z"/>
+    <svg class="doodles" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id="doodle" width="210" height="210" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".16">
+            <path d="M36 20c9 11 13 19 13 25a13 13 0 0 1-26 0c0-6 4-14 13-25z"/>
+            <path d="M150 26l4 12 12 4-12 4-4 12-4-12-12-4 12-4z"/>
+            <path d="M128 150c0-25 17-38 42-38 0 27-15 42-42 38zM128 150l22-20"/>
+            <rect x="30" y="122" width="26" height="46" rx="8"/>
+            <path d="M37 122v-9h12v9M30 140h26"/>
+            <circle cx="98" cy="84" r="4"/>
+            <circle cx="190" cy="186" r="3"/>
+            <path d="M78 194c6-8 14-8 20 0s14 8 20 0"/>
+          </g>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#doodle)"/>
     </svg>
 
     <div class="hero-inner">
-      <div class="masthead">
-        <p class="tag">By Seven Moments</p>
+      <div class="intro-col">
         <h1 class="headline">
-          <span class="label taped tape-right">The Ingredient</span>
-          <span class="label">Decoder</span>
-          <span class="script" aria-hidden="true">know what's inside</span>
+          <span class="line line-1">
+            <span>the</span>
+            <svg class="squiggle" viewBox="0 0 160 34" aria-hidden="true" focusable="false"><path pathLength="1" d="M5 17 Q 20 3 35 17 T 65 17 T 95 17 T 125 17 T 155 17"/></svg>
+            <svg class="spark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+          </span>
+          <span class="line line-2">ingredient</span>
+          <span class="line line-3"><span class="box">decoder</span></span>
         </h1>
-        <p class="lede">Type a product name, paste an ingredient list, or ask about one ingredient. You'll get a plain-English breakdown of what it does.</p>
+        <p class="by">by seven moments</p>
+        <p class="lede">You'll get a plain-English breakdown of what every ingredient does.</p>
+        <ul class="chips" aria-label="What you can give it">
+          <li><span class="chip-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></svg></span>type a product</li>
+          <li><span class="chip-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg></span>paste a list</li>
+          <li><span class="chip-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3c4 5 6 8.5 6 11a6 6 0 0 1-12 0c0-2.5 2-6 6-11z"/></svg></span>ask about one ingredient</li>
+          <li><span class="chip-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>snap the label</li>
+        </ul>
       </div>
 
       <section class="tool" id="decoder" aria-label="Decode a product">
-        <form id="decode-form">
-          <div class="paper box taped tape-olive">
-            <label class="field" for="query">Product, ingredient list, or ingredient</label>
-            <textarea id="query" placeholder="e.g. Blurring balm powder, or Aqua, Glycerin, Niacinamide..."></textarea>
-            <p class="hint">Separate ingredients with commas or new lines. Product names are matched against a public ingredient database.</p>
+        <div class="badge" aria-hidden="true">
+          <div class="badge-spin">
+            <svg viewBox="0 0 140 140" focusable="false">
+              <defs><path id="ring" d="M70,70 m-50,0 a50,50 0 1,1 100,0 a50,50 0 1,1 -100,0"/></defs>
+              <text><textPath href="#ring" textLength="312" lengthAdjust="spacing">ingredient decoder &#10022; seven moments &#10022;</textPath></text>
+            </svg>
           </div>
+          <svg class="badge-core" viewBox="0 0 24 24" focusable="false"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+        </div>
 
-          <div class="paper box">
-            <div class="dropzone" id="dropzone" role="button" tabindex="0">
-              <span class="dz-icon" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M28 5H12a3 3 0 0 0-3 3v32a3 3 0 0 0 3 3h24a3 3 0 0 0 3-3V16z"/><path d="M28 5v11h11"/><circle cx="20" cy="24" r="3"/><path d="M12 38l8-8 5 5 4-4 7 7"/></svg></span>
-              <div>
-                <p class="drop-text"><span class="on-mouse">Drop your image here, or <span class="browse">browse</span></span><span class="on-touch">Tap to add a photo of the <span class="browse">ingredient list</span></span></p>
-                <p class="drop-hint">Any photo from your phone or computer</p>
-              </div>
-              <input type="file" id="photo" accept="image/*" hidden>
+        <form id="decode-form">
+          <label class="field" for="query">
+            <span class="field-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></span>
+            Product, ingredient list, or ingredient
+          </label>
+          <textarea id="query" placeholder="e.g. Blurring balm powder, or Aqua, Glycerin, Niacinamide..."></textarea>
+          <p class="hint">Separate ingredients with commas or new lines. Product names are matched against a public ingredient database.</p>
+
+          <div class="or" aria-hidden="true">or</div>
+
+          <div class="dropzone" id="dropzone" role="button" tabindex="0">
+            <span class="dz-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+            <div>
+              <p class="drop-text"><span class="on-mouse">Drop a photo of the ingredient list here, or <span class="browse">browse</span></span><span class="on-touch">Tap to add a photo of the ingredient list</span></p>
+              <p class="drop-hint">Any photo from your phone or computer</p>
             </div>
-            <p class="photo-status" id="photo-status"></p>
+            <input type="file" id="photo" accept="image/*" hidden>
           </div>
+          <p class="photo-status" id="photo-status"></p>
 
           <button class="btn" id="submit" type="submit" disabled>
             <span>Decode</span>
@@ -510,12 +638,11 @@
           </button>
         </form>
 
-        <div id="loading" class="paper loader hidden">
-          <svg class="loader-ring" viewBox="0 0 72 72" aria-hidden="true" focusable="false">
-            <circle cx="36" cy="36" r="32" stroke="rgba(14,26,56,.2)"/>
-            <circle cx="36" cy="36" r="32" stroke="#0e1a38" stroke-dasharray="48 154" stroke-linecap="round"/>
-            <circle cx="36" cy="4" r="4" fill="#8f8137" stroke="none"/>
-          </svg>
+        <div id="loading" class="loader hidden">
+          <div class="loader-sticker" aria-hidden="true">
+            <div class="burst"></div>
+            <svg viewBox="0 0 24 24" focusable="false"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg>
+          </div>
           <p class="loader-msg" id="loader-msg" role="status" aria-live="polite">reading what you gave me...</p>
           <div class="loader-progress" aria-hidden="true"><div class="loader-bar" id="loader-bar"></div></div>
         </div>
@@ -525,25 +652,37 @@
     </div>
   </header>
 
-  <main class="results-section">
-    <svg class="collage lace lace-res hidden" id="results-lace" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
-      <path filter="url(#rough)" fill="url(#net)" d="M60 40C140 0 260 10 330 50C390 85 400 170 370 240C345 300 380 350 330 385C270 420 190 380 130 360C60 340 20 290 25 220C30 160 0 90 60 40Z"/>
-    </svg>
+  <div class="ribbons" aria-hidden="true">
+    <div class="ribbon ribbon-blue">
+      <div class="track">
+        <span>what's in it<i></i>what each one does<i></i>what's worth knowing<i></i>what's in it<i></i>what each one does<i></i>what's worth knowing<i></i></span>
+        <span>what's in it<i></i>what each one does<i></i>what's worth knowing<i></i>what's in it<i></i>what each one does<i></i>what's worth knowing<i></i></span>
+      </div>
+    </div>
+    <div class="ribbon ribbon-pink">
+      <div class="track">
+        <span>plain english<i></i>grouped by what it does<i></i>no scores, no ratings<i></i>plain english<i></i>grouped by what it does<i></i>no scores, no ratings<i></i></span>
+        <span>plain english<i></i>grouped by what it does<i></i>no scores, no ratings<i></i>plain english<i></i>grouped by what it does<i></i>no scores, no ratings<i></i></span>
+      </div>
+    </div>
+  </div>
+
+  <main>
     <section id="results-wrap" class="results-wrap hidden" tabindex="-1" aria-labelledby="results-title">
       <div id="results"></div>
     </section>
   </main>
 
   <footer class="foot">
-    <svg class="torn" viewBox="0 0 1440 26" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <path filter="url(#torn)" d="M-20 14 L1460 10 L1460 40 L-20 40 Z"/>
+    <svg class="wave" viewBox="0 0 1440 70" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d="M0 42 C 160 4, 320 4, 480 36 S 800 70, 960 38 S 1280 2, 1440 30 V70 H0 Z"/>
     </svg>
     <div class="foot-inner">
       <div class="foot-row">
-        <p>The Ingredient Decoder</p>
-        <p>&copy; 2026 Seven Moments</p>
+        <p>the ingredient decoder</p>
+        <p>&copy; 2026 seven moments</p>
       </div>
-      <p class="wordmark" aria-hidden="true">Seven Moments</p>
+      <p class="wordmark" aria-hidden="true"><span>seven</span><svg viewBox="0 0 24 24" focusable="false"><path d="M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z"/></svg><span>moments</span></p>
     </div>
   </footer>
 
@@ -558,7 +697,6 @@
     const submit = document.getElementById('submit');
     const notice = document.getElementById('notice');
     const resultsWrap = document.getElementById('results-wrap');
-    const resultsLace = document.getElementById('results-lace');
     const results = document.getElementById('results');
     const dropzone = document.getElementById('dropzone');
     const photo = document.getElementById('photo');
@@ -704,6 +842,7 @@
       [/texture|thicken|emulsif|feel|film|silicone|spread|slip|blend/, 'waves'],
     ];
     const FALLBACK_ICONS = ['sparkle', 'drop', 'leaf', 'waves'];
+    const TILTS = [-0.8, 0.6, -0.4, 0.9, -0.6, 0.5];
 
     function pickIcon(label, index) {
       const text = String(label || '').toLowerCase();
@@ -713,8 +852,8 @@
       return FALLBACK_ICONS[index % FALLBACK_ICONS.length];
     }
 
-    function iconCircle(name) {
-      const wrap = el('span', 'card-icon');
+    function iconBadge(name) {
+      const wrap = el('span', 'sticker-icon');
       wrap.setAttribute('aria-hidden', 'true');
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', '0 0 24 24');
@@ -723,66 +862,61 @@
       return wrap;
     }
 
-    function arrowIcon(path) {
-      const span = el('span', 'btn-icon');
-      span.setAttribute('aria-hidden', 'true');
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 24 24');
-      svg.innerHTML = `<path d="${path}"/>`;
-      span.append(svg);
-      return span;
-    }
-
     function renderBreakdown(data) {
       const nodes = [];
-      const groups = data.groups || [];
       const head = el('div', 'results-head');
-      let title = 'Your breakdown';
-      if (data.source === 'photo') title = 'From your photo';
-      else if (data.productName) title = data.productName;
-      else if (data.source === 'list') title = 'Your ingredient list';
-      else if (data.mode === 'ingredient' && groups[0]) title = groups[0].label;
-
-      if (data.ingredientCount) {
-        head.append(el('p', 'tag', `${data.ingredientCount} ${data.ingredientCount === 1 ? 'ingredient' : 'ingredients'}`));
+      const titleBox = el('div');
+      let kicker = 'your breakdown';
+      let title = 'your breakdown';
+      if (data.source === 'photo') {
+        kicker = 'from your photo';
+        title = 'your label, decoded';
+      } else if (data.productName) {
+        kicker = 'decoded';
+        title = data.productName;
+      } else if (data.source === 'list') {
+        kicker = 'from your list';
+        title = 'your ingredient list';
       }
-      const h2 = el('h2', 'results-title taped tape-right', title);
+      titleBox.append(el('p', 'results-kicker', kicker));
+      const h2 = el('h2', 'results-title', title);
       h2.id = 'results-title';
-      const script = el('span', 'script', 'decoded');
-      script.setAttribute('aria-hidden', 'true');
-      head.append(h2, script);
+      titleBox.append(h2);
+      head.append(titleBox);
+      if (data.ingredientCount) {
+        const count = el('p', 'count');
+        count.style.setProperty('--i', 1);
+        count.append(el('b', '', String(data.ingredientCount)), el('span', '', data.ingredientCount === 1 ? 'ingredient' : 'ingredients'));
+        head.append(count);
+      }
       nodes.push(head);
 
-      if (data.intro) {
-        const intro = el('p', 'intro', data.intro);
-        intro.style.setProperty('--i', 1);
-        nodes.push(intro);
-      }
+      if (data.intro) nodes.push(el('p', 'intro', data.intro));
 
-      const cards = el('div', 'cards');
-      groups.forEach((group, i) => {
+      const grid = el('div', 'stickers');
+      (data.groups || []).forEach((group, i) => {
         const slot = el('div', 'slot');
-        slot.style.setProperty('--i', i + 2);
-        const card = el('article', 'paper card');
-        const cardHead = el('div', 'card-head');
-        cardHead.append(iconCircle(pickIcon(group.label, i)), el('h3', '', group.label));
-        card.append(cardHead);
-        if (data.mode !== 'ingredient') card.append(el('p', 'names', (group.ingredients || []).join(', ')));
-        card.append(el('p', '', group.explanation));
+        const card = el('article', i % 3 === 1 ? 'sticker tone-blue' : 'sticker');
+        card.style.setProperty('--r', TILTS[i % TILTS.length] + 'deg');
+        card.style.setProperty('--i', i + 2);
+        card.append(
+          iconBadge(pickIcon(group.label, i)),
+          el('h3', '', group.label),
+          el('p', 'names', (group.ingredients || []).join(', ')),
+          el('p', '', group.explanation),
+        );
         slot.append(card);
-        cards.append(slot);
+        grid.append(slot);
       });
-      nodes.push(cards);
+      nodes.push(grid);
 
       if (data.worth_knowing && data.worth_knowing.length) {
         const slot = el('div', 'slot worth');
-        slot.style.setProperty('--i', groups.length + 2);
-        const card = el('article', 'paper card');
-        const cardHead = el('div', 'card-head');
-        cardHead.append(iconCircle('bulb'), el('h3', '', 'Worth knowing'));
+        const card = el('article', 'sticker');
+        card.style.setProperty('--i', (data.groups || []).length + 2);
         const list = el('ul');
         data.worth_knowing.forEach((note) => list.append(el('li', '', note)));
-        card.append(cardHead, list);
+        card.append(iconBadge('bulb'), el('h3', '', 'worth knowing'), list);
         slot.append(card);
         nodes.push(slot);
       }
@@ -794,21 +928,25 @@
         nodes.push(caveat);
       }
 
-      const resetBtn = el('button', 'btn small again');
+      const resetBtn = el('button', 'btn again');
       resetBtn.type = 'button';
-      resetBtn.append(el('span', '', 'Decode another'), arrowIcon('M12 19V5M6 11l6-6 6 6'));
+      const iconSpan = el('span', 'btn-icon');
+      iconSpan.setAttribute('aria-hidden', 'true');
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.innerHTML = '<path d="M12 19V5M6 11l6-6 6 6"/>';
+      iconSpan.append(svg);
+      resetBtn.append(el('span', '', 'Decode another product'), iconSpan);
       resetBtn.addEventListener('click', resetForm);
       nodes.push(resetBtn);
 
       results.replaceChildren(...nodes);
       resultsWrap.classList.remove('hidden');
-      resultsLace.classList.remove('hidden');
     }
 
     function resetForm() {
       results.replaceChildren();
       resultsWrap.classList.add('hidden');
-      resultsLace.classList.add('hidden');
       notice.classList.add('hidden');
       query.value = '';
       clearPhoto();
@@ -880,7 +1018,6 @@
       notice.classList.add('hidden');
       results.replaceChildren();
       resultsWrap.classList.add('hidden');
-      resultsLace.classList.add('hidden');
       startLoader();
 
       try {
