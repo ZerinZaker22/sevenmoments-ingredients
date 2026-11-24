@@ -57,9 +57,9 @@ Respond only with JSON: {"is_ingredient": true or false, "name": "...", "explana
 
 The "name" must be only the ingredient's common name, with no brand, product name, or percentage.`;
 
-const PHOTO_PROMPT = `Read the ingredient list printed on this product photo. Return each ingredient as its own item in the array, exactly as printed, in the order printed. Ingredients are separated by commas; a long name often wraps onto the next line, so join the wrapped parts into one name (for example "BIOTINOYL" on one line and "TRIPEPTIDE-1" on the next is "BIOTINOYL TRIPEPTIDE-1"). Copy the spelling letter by letter. If the list is printed in more than one language, return it once, in English or INCI names. If there is no ingredient list in the photo, return an empty list.
+const PHOTO_PROMPT = `Read the ingredient list printed on this product photo and copy it as one piece of text, exactly as printed: same order, same spelling letter by letter, and every comma that separates two ingredients. Printed lists wrap long names onto the next line; where a line breaks in the middle of a name, join the two parts with a space, never with a comma (for example "BIOTINOYL" at the end of one line and "TRIPEPTIDE-1" at the start of the next is "BIOTINOYL TRIPEPTIDE-1"). Only write a comma where the label prints one. Leave out the heading (for example "Ingredients:"). If the list is printed in more than one language, copy it once, in English or INCI names. If there is no ingredient list in the photo, return an empty string.
 
-Respond only with JSON: {"ingredients":["..."]}`;
+Respond only with JSON: {"list":"..."}`;
 
 const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
 
@@ -255,6 +255,13 @@ async function requestBreakdown(apiKey, ctx, ingredients, productName, models) {
 }
 
 function parsePhotoList(parsed) {
+  // The label's own commas are the reliable separators; the model only copies the text.
+  if (typeof parsed.list === 'string') {
+    const text = parsed.list.trim();
+    if (!text) return [];
+    const joined = /[,;•]/.test(text) ? text.replace(/\s*\n\s*/g, ' ') : text;
+    return splitIngredients(joined).filter((name) => name.length > 1).slice(0, MAX_INGREDIENTS);
+  }
   const items = Array.isArray(parsed.ingredients) ? parsed.ingredients : (typeof parsed.ingredients === 'string' ? [parsed.ingredients] : []);
   return items
     .flatMap((item) => {
