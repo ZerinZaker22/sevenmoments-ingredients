@@ -79,7 +79,7 @@ Respond only with JSON: {"brand": "...", "name": "..."}`;
 const NAME_INGREDIENTS_PROMPT = `You extract ingredient names from beauty product names. Given a product name, identify every cosmetic or skincare ingredient mentioned or abbreviated in it. Expand abbreviations (TXA = Tranexamic Acid, HA = Hyaluronic Acid, BHA = Salicylic Acid, AHA = Glycolic Acid, Vit C = Ascorbic Acid). Return JSON: {"ingredients": ["Arbutin", "Tranexamic Acid"]} or {"ingredients": []} if no ingredients are identifiable. Only list real cosmetic ingredients, not brand names or product types.`;
 
 const PARABEN = /paraben/i;
-const SULFATE = /(lauryl|laureth|myreth|cocoyl|oleth)[\w\s.-]*sulf[ao]te/i;
+const SULFATE = /sul(f|ph)ate/i;
 const LIST_LABEL = /^[\s\S]{0,40}?\b(ingredients?|ingr[ée]dients?|inci|composition)\b[^:\n]{0,30}:\s*/i;
 const SIZE = /^\s*\d+([.,]\d+)?\s*(ml|l|oz|fl\.?\s*oz|g|kg|mg|pcs?|count|ct)\b/i;
 
