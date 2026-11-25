@@ -446,8 +446,10 @@ async function lookupProduct(query) {
       && ingredients.length >= 4
       && looksReal(ingredients));
     if (!match) return null;
+    const title = match.product.product_name || '';
+    const maker = (match.product.brands || '').split(',')[0].trim();
     return {
-      name: [match.product.brands, match.product.product_name].filter(Boolean).join(' ').slice(0, 120),
+      name: (nameKey(title).includes(nameKey(maker)) ? title : `${maker} ${title}`).trim().slice(0, 120),
       ingredients: match.ingredients,
     };
   } catch {
