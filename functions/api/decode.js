@@ -72,7 +72,7 @@ Respond only with JSON:
 - ingredients: one ingredient per item, in printed order, spelled as printed. A long name often wraps onto the next line, sometimes with a hyphen: join it into one item. Keep a bracketed name with its ingredient. Leave out headings, footnotes, and directions. Include both active and inactive ingredients, and every list if the pack has several. If the list is repeated in several languages, include it once, in English or INCI names.
 - brand and product: as printed on the pack, if you can see them, otherwise empty strings. The product is its full specific name, not its claims. If only a general type is visible, such as "foundation" or "face cream", use an empty string.`;
 
-const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
+const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. If the text is only a brand, even a misspelled one (e.g. "cerave", "cerve" → CeraVe, "cetaphill" → Cetaphil), return the brand's correct spelling and an empty name. If the text is only an ingredient (e.g. "shea butter"), return empty strings. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
 
 Respond only with JSON: {"brand": "...", "name": "..."}`;
 
@@ -580,16 +580,25 @@ async function identifyProduct(apiKey, ctx, text) {
   const parsed = await askAI(apiKey, ctx, [
     { role: 'system', content: PRODUCT_PROMPT },
     { role: 'user', content: text },
-  ], { models: [MODEL, FALLBACK_MODEL] });
+  ], { models: [FALLBACK_MODEL, MODEL] });
   return {
     brand: String(parsed.brand || '').trim().slice(0, 60),
     name: String(parsed.name || '').trim().slice(0, 120),
   };
 }
 
+function isBrandOnly(text, brand) {
+  const typed = nameKey(text);
+  const known = nameKey(brand);
+  if (!typed || !known) return false;
+  return typed === known || editDistance(typed, known) / Math.max(typed.length, known.length) <= 0.2;
+}
+
 async function tryIngredient(apiKey, ctx, text) {
   const single = await explainSingleIngredient(apiKey, ctx, text);
   if (!single) return null;
+  // "vitamin c serum" contains an ingredient but is a product, so a longer search must be the ingredient's whole name.
+  if (/\s/.test(text) && !sameIngredient(single.name, text)) return null;
   return json({
     demo: false,
     mode: 'ingredient',
@@ -640,15 +649,18 @@ export async function onRequestPost({ request, env }) {
     }
     text = stripSize(text) || text;
 
-    const singleWord = !/\s/.test(text);
-    if (apiKey && singleWord) {
-      try {
-        const ingredient = await tryIngredient(apiKey, ctx, text);
-        if (ingredient) return ingredient;
-      } catch {}
+    // The product list matches any product containing these words, so an ingredient or a brand on its own has to be caught first.
+    const short = apiKey && text.split(/\s+/).length <= 4;
+    const [product, ingredient, early] = await Promise.all([
+      lookupProduct(text),
+      short ? tryIngredient(apiKey, ctx, text).catch(() => null) : null,
+      short ? identifyProduct(apiKey, ctx, text).catch(() => null) : null,
+    ]);
+    const brandTyped = early && early.brand && nameKey(text).includes(nameKey(early.brand));
+    if (ingredient && !brandTyped) return ingredient;
+    if (early && isBrandOnly(text, early.brand)) {
+      return json({ error: `i can see this is a ${early.brand} product. please type the full product name, or upload a photo of the ingredient list.` }, 404);
     }
-
-    const product = await lookupProduct(text);
     if (product && product.ingredients.length > 0) {
       return await breakdownResponse(apiKey, ctx, { ingredients: product.ingredients, productName: product.name, source: 'product' });
     }
@@ -660,7 +672,7 @@ export async function onRequestPost({ request, env }) {
     let info = { brand: '', name: '' };
     let webDirect = null;
     const [identified, searched] = await Promise.allSettled([
-      identifyProduct(apiKey, ctx, text),
+      early || identifyProduct(apiKey, ctx, text),
       searchProductIngredients(apiKey, ctx, text),
     ]);
     if (identified.status === 'fulfilled') info = identified.value;
