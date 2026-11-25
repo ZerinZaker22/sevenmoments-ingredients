@@ -1,9 +1,9 @@
 import { cleanBreakdown, cleanText } from '../../lib/guard.js';
 
-const MODEL = 'gpt-5-nano';
+const MODEL = 'gpt-5.4-nano';
 const FALLBACK_MODEL = 'gpt-4o-mini';
 const SEARCH_MODEL = 'gpt-4o-mini';
-// Small print needs a model that accepts photos at original detail; gpt-5-nano shrinks them and invents what it can't read.
+// Small print needs a model that accepts photos at original detail.
 const PHOTO_MODELS = ['gpt-5.4-mini', 'gpt-4.1-mini'];
 const DAILY_LIMIT = 25;
 const MAX_CHARS = 6000;
@@ -20,11 +20,11 @@ const CAVEAT = [
 
 const SYSTEM_PROMPT = `You write short, friendly ingredient breakdowns for SEVEN MOMENTS. The audience is people who want to understand what is in a beauty or personal care product.
 
-Explain what each ingredient in the list is doing in the formula, in plain English. Group the ingredients by the job they do (for example oil control, the blur, hydration, structure, color, preservation, fragrance, odor control), not by the order on the label. The ingredients are numbered. In "items", list the numbers that belong to a group. Every number must appear in exactly one group.
+Explain what each ingredient in the list is doing in the formula, in plain English. Group the ingredients by the job they do (for example oil control, the blur, hydration, structure, color, preservation, fragrance, odor control), not by the order on the label. Every ingredient must appear in exactly one group, copied exactly as given. Check before answering: no ingredient is in two groups, none is left out, and each explanation names only ingredients from its own group.
 
 Writing style:
 - Lowercase-forward, short sentences, contractions. Conversational.
-- Start with one opening line saying what the product is for, based on the ingredients. Work it out from what you see (for example "this one's for people whose face gets shiny" or "this is a deodorant meant to keep things fresh without aluminum"). If you genuinely can't tell, say "i'm not sure what this one's for, but here's what's in it."
+- Start with one opening line saying what the product is for, based on the ingredients. Work it out from what you see (for example "this one's for people whose face gets shiny" or "this is a deodorant meant to keep things fresh without aluminum"). When a product name is given, use what it tells you, and never say you're not sure. With no product name, work it out from the main ingredients. Only if those give no clue at all, say "i'm not sure what this one's for, but here's what's in it."
 - Each group gets a short label in plain words and one or two sentences.
 - If an ingredient is obscure or you genuinely don't know what it does, say "i'm not sure about this one" instead of guessing. Common ingredients such as water, glycerin, and fragrance are known, so explain them.
 - Emoji and exclamation points are not allowed. No pet names (girl, babe, bestie, hun). No marketing words (nourishing, luxurious, transformative, powerhouse, glow-giving).
@@ -47,7 +47,7 @@ Never:
 Leave the list empty if none apply. Write each note as a plain sentence about this product. Only add a note when it is true for these ingredients. Never write a note saying something is absent or not listed, and never copy the bullet wording above as a heading.
 
 Respond only with JSON in this shape:
-{"intro":"...","groups":[{"label":"...","items":[1,2],"explanation":"..."}],"worth_knowing":["..."]}`;
+{"intro":"...","groups":[{"label":"...","ingredients":["..."],"explanation":"..."}],"worth_knowing":["..."]}`;
 
 const INGREDIENT_PROMPT = `You explain a single beauty or personal care ingredient for SEVEN MOMENTS.
 
@@ -112,6 +112,7 @@ async function takeDailyQuota(env, request) {
 function cleanIngredientName(name) {
   return String(name)
     .replace(/^[\s.*•·\-–]+|[\s.*•·]+$/g, '')
+    .replace(/^[[(]?\s*(may contain|peut contenir|\+\s*\/\s*-)[\s:)\]/+-]*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -184,7 +185,7 @@ function tidyNotes(notes, ingredients) {
     .map((note) => note.replace(NOTE_HEADING, '').trim())
     .filter((note) => {
       const text = note.toLowerCase();
-      if (!note || ABSENCE.test(text) || /not sure/.test(text)) return false;
+      if (!note || ABSENCE.test(text) || /not sure|if present|explain it/.test(text)) return false;
       if (/fragrance|scent|parfum/.test(text) && !hasFragrance) return false;
       const key = text.replace(/[^a-z]/g, '').slice(0, 40);
       if (seen.has(key)) return false;
@@ -220,7 +221,7 @@ async function callOpenAI(apiKey, messages, { model, maxTokens, timeoutMs }) {
     response_format: { type: 'json_object' },
     messages,
   };
-  if (model === 'gpt-5-nano') body.reasoning_effort = 'minimal';
+
   if (model.startsWith('gpt-5.4')) body.reasoning_effort = 'none';
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -269,25 +270,34 @@ async function requestBreakdown(apiKey, ctx, ingredients, productName, models) {
     { role: 'system', content: SYSTEM_PROMPT },
     {
       role: 'user',
-      content: `Product name: ${productName || 'not given'}\nIngredients:\n${ingredients.map((name, i) => `${i + 1}. ${name}`).join('\n')}`,
+      content: `Product name: ${productName || 'not given'}\nIngredients:\n${ingredients.join('\n')}`,
     },
   ], { maxTokens: Math.min(8000, 1500 + ingredients.length * 90), models });
 
-  // Names come from the list, never from the model, so it can't invent or misspell an ingredient.
-  const used = new Set();
-  const pick = (items) => (Array.isArray(items) ? items : [])
-    .map((item) => Number(item))
-    .filter((n) => Number.isInteger(n) && n >= 1 && n <= ingredients.length && !used.has(n) && used.add(n))
-    .map((n) => ingredients[n - 1]);
+  // Every name is matched back to the list, so the model can't invent or misspell an ingredient.
+  // Exact matches go first: "ceramide np" must not be taken for "ceramide ap".
+  const groups = (Array.isArray(parsed.groups) ? parsed.groups : [])
+    .filter((group) => group && group.label && group.explanation && Array.isArray(group.ingredients))
+    .slice(0, 14);
+  const exact = (name, listed) => (nameKey(name) || name) === (nameKey(listed) || listed);
+  const placed = groups.map(() => []);
+  ingredients.forEach((listed) => {
+    const namedIn = (matches) => groups.map((_, g) => g).filter((g) => groups[g].ingredients.some((name) => matches(String(name), listed)));
+    let options = namedIn(exact);
+    if (options.length === 0) options = namedIn(sameIngredient);
+    if (options.length === 0) return;
+    // The model can name an ingredient in two groups; it belongs in the one whose text describes it.
+    const bare = nameKey(listed.replace(/[([].*$/, '')) || nameKey(listed);
+    const described = options.find((g) => bare && nameKey(groups[g].explanation).includes(bare));
+    placed[described ?? options[0]].push(listed);
+  });
 
   return {
     intro: String(parsed.intro || ''),
-    groups: (Array.isArray(parsed.groups) ? parsed.groups : [])
-      .filter((group) => group && group.label && group.explanation)
-      .slice(0, 14)
-      .map((group) => ({
+    groups: groups
+      .map((group, g) => ({
         label: String(group.label).slice(0, 80),
-        ingredients: pick(group.items),
+        ingredients: placed[g],
         explanation: String(group.explanation).slice(0, 600),
       }))
       .filter((group) => group.ingredients.length > 0),
@@ -408,6 +418,12 @@ async function explainSingleIngredient(apiKey, ctx, text) {
   return { name: name || text, explanation };
 }
 
+// Public listings sometimes hold a slogan or a description in the ingredient field; ingredient names are short.
+function looksReal(ingredients) {
+  const wordy = ingredients.filter((name) => name.replace(/\([^)]*\)/g, '').split(/\s+/).length > 7);
+  return ingredients.length > 0 && wordy.length / ingredients.length <= 0.15;
+}
+
 async function lookupProduct(query) {
   const words = query.toLowerCase().split(/\s+/).filter((word) => word.length >= 3);
   if (words.length === 0) return null;
@@ -417,22 +433,22 @@ async function lookupProduct(query) {
     if (!response.ok) return null;
     const data = await response.json();
     const queryText = query.toLowerCase();
-    // A variant the visitor did not type (an SPF version, a size or number) is a different formula.
+    // Any word the visitor did not type (lip balm, SPF, a number) means a different formula, so the web search takes over.
     const candidates = (data.products || [])
       .filter((product) => product.ingredients_text && product.ingredients_text.trim())
       .map((product) => {
         const name = [product.brands, product.product_name].filter(Boolean).join(' ').toLowerCase();
-        const extra = name.split(/[\s,/()-]+/).filter((token) => token && !queryText.includes(token));
-        return { product, name, extra };
-      })
-      .filter(({ name, extra }) => words.every((word) => name.includes(word))
-        && !extra.some((token) => /spf|^\d/.test(token)));
-    candidates.sort((a, b) => a.extra.length - b.extra.length);
-    const match = candidates[0] && candidates[0].product;
+        const extra = name.split(/[\s,/()&-]+/).filter((token) => token && !/^(and|the|by|with|for)$/.test(token) && !queryText.includes(token));
+        return { product, name, extra, ingredients: splitIngredients(product.ingredients_text) };
+      });
+    const match = candidates.find(({ name, extra, ingredients }) => words.every((word) => name.includes(word))
+      && extra.length === 0
+      && ingredients.length >= 4
+      && looksReal(ingredients));
     if (!match) return null;
     return {
-      name: [match.brands, match.product_name].filter(Boolean).join(' ').slice(0, 120),
-      ingredients: splitIngredients(match.ingredients_text),
+      name: [match.product.brands, match.product.product_name].filter(Boolean).join(' ').slice(0, 120),
+      ingredients: match.ingredients,
     };
   } catch {
     return null;
@@ -485,7 +501,8 @@ async function webSearchIngredients(apiKey, ctx, query) {
     const msg = (data.output || []).find((item) => item.type === 'message');
     const text = (msg && msg.content && msg.content[0] && msg.content[0].text) || '';
     if (!text) return null;
-    return parseIngredientsFromText(text);
+    const found = parseIngredientsFromText(text);
+    return found && looksReal(found) ? found : null;
   } catch {
     return null;
   }
@@ -536,7 +553,12 @@ function sampleBreakdown(ingredients) {
   };
 }
 
-async function breakdownResponse(apiKey, ctx, { ingredients, productName, source, note }) {
+async function breakdownResponse(apiKey, ctx, { ingredients: listed, productName, source, note }) {
+  const seen = new Set();
+  const ingredients = listed.filter((name) => {
+    const key = nameKey(name) || name;
+    return !seen.has(key) && seen.add(key);
+  });
   const meta = { mode: 'list', source, productName, ingredientCount: ingredients.length, caveat: CAVEAT };
 
   if (!apiKey) {
@@ -563,7 +585,7 @@ async function breakdownResponse(apiKey, ctx, { ingredients, productName, source
 
   if (breakdown.groups.length === 0) {
     breakdown = cleanBreakdown(await requestBreakdown(apiKey, ctx, ingredients, productName, [FALLBACK_MODEL]));
-    if (breakdown.groups.length === 0) throw new Error('empty');
+    if (breakdown.groups.length === 0) return json({ error: NOT_FOUND }, 404);
   }
   const leftOver = missingFrom(breakdown.groups);
   if (leftOver.length > 0) {
