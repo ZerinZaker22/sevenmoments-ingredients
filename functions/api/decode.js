@@ -603,10 +603,21 @@ async function identifyProduct(apiKey, ctx, text) {
     { role: 'system', content: PRODUCT_PROMPT },
     { role: 'user', content: text },
   ], { models: [FALLBACK_MODEL, MODEL] });
-  return {
-    brand: String(parsed.brand || '').trim().slice(0, 60),
-    name: String(parsed.name || '').trim().slice(0, 120),
-  };
+  const brand = String(parsed.brand || '').trim().slice(0, 60);
+  const named = String(parsed.name || '').trim().slice(0, 120);
+  const name = named && !nameKey(named).includes(nameKey(brand)) ? `${brand} ${named}` : named;
+  return resembles(text, `${brand} ${name}`) ? { brand, name } : { brand: '', name: '' };
+}
+
+// A spelling fix still looks like what was typed. "Suppuru" must never turn into "Supergoop".
+function resembles(typed, suggested) {
+  const words = (value) => value.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length >= 3 && !/^\d+$/.test(word));
+  const asked = words(typed);
+  const offered = words(suggested);
+  if (asked.length === 0 || offered.length === 0) return false;
+  const joined = nameKey(suggested);
+  const matches = (word) => joined.includes(word) || offered.some((other) => editDistance(word, other) / Math.max(word.length, other.length) <= 0.34);
+  return matches(asked[0]) && asked.filter(matches).length / asked.length >= 0.6;
 }
 
 function isBrandOnly(text, brand) {
