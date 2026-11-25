@@ -3,6 +3,8 @@ import { cleanBreakdown, cleanText } from '../../lib/guard.js';
 const MODEL = 'gpt-5-nano';
 const FALLBACK_MODEL = 'gpt-4o-mini';
 const SEARCH_MODEL = 'gpt-4o-mini';
+// Small print needs a model that accepts photos at original detail; gpt-5-nano shrinks them and invents what it can't read.
+const PHOTO_MODELS = ['gpt-5.4-mini', 'gpt-4.1-mini'];
 const DAILY_LIMIT = 25;
 const MAX_CHARS = 6000;
 const MAX_INGREDIENTS = 100;
@@ -18,7 +20,7 @@ const CAVEAT = [
 
 const SYSTEM_PROMPT = `You write short, friendly ingredient breakdowns for SEVEN MOMENTS. The audience is people who want to understand what is in a beauty or personal care product.
 
-Explain what each ingredient in the list is doing in the formula, in plain English. Group the ingredients by the job they do (for example oil control, the blur, hydration, structure, color, preservation, fragrance, odor control), not by the order on the label. Every ingredient must appear in exactly one group.
+Explain what each ingredient in the list is doing in the formula, in plain English. Group the ingredients by the job they do (for example oil control, the blur, hydration, structure, color, preservation, fragrance, odor control), not by the order on the label. The ingredients are numbered. In "items", list the numbers that belong to a group. Every number must appear in exactly one group.
 
 Writing style:
 - Lowercase-forward, short sentences, contractions. Conversational.
@@ -45,7 +47,7 @@ Never:
 Leave the list empty if none apply. Write each note as a plain sentence about this product. Only add a note when it is true for these ingredients. Never write a note saying something is absent or not listed, and never copy the bullet wording above as a heading.
 
 Respond only with JSON in this shape:
-{"intro":"...","groups":[{"label":"...","ingredients":["..."],"explanation":"..."}],"worth_knowing":["..."]}`;
+{"intro":"...","groups":[{"label":"...","items":[1,2],"explanation":"..."}],"worth_knowing":["..."]}`;
 
 const INGREDIENT_PROMPT = `You explain a single beauty or personal care ingredient for SEVEN MOMENTS.
 
@@ -57,9 +59,18 @@ Respond only with JSON: {"is_ingredient": true or false, "name": "...", "explana
 
 The "name" must be only the ingredient's common name, with no brand, product name, or percentage.`;
 
-const PHOTO_PROMPT = `Read the ingredient list printed on this product photo and copy it as one piece of text, exactly as printed: same order, same spelling letter by letter, and every comma that separates two ingredients. Printed lists wrap long names onto the next line; where a line breaks in the middle of a name, join the two parts with a space, never with a comma (for example "BIOTINOYL" at the end of one line and "TRIPEPTIDE-1" at the start of the next is "BIOTINOYL TRIPEPTIDE-1"). Only write a comma where the label prints one. Leave out the heading (for example "Ingredients:"). If the list is printed in more than one language, copy it once, in English or INCI names. If there is no ingredient list in the photo, return an empty string.
+const PHOTO_PROMPT = `You transcribe photos of beauty and personal care products. Report only what you can see in the photo. The label may be sideways, upside down, curved, small, or partly covered: read it in whatever direction it runs.
 
-Respond only with JSON: {"list":"..."}`;
+Never complete, correct, or guess an ingredient from memory. If you can't make out a word's letters, leave that ingredient out and lower "legibility". A short true answer is better than a long invented one.
+
+Respond only with JSON:
+{"turn": 0 or 90 or 180 or 270, "has_list": true or false, "legibility": "full" or "partial" or "none", "ingredients": ["..."], "brand": "...", "product": "..."}
+
+- turn: how many degrees clockwise the photo must be turned so the ingredient list reads upright, left to right. 0 if it already does, 90 if its lines run from bottom to top, 270 if its lines run from top to bottom, 180 if it is upside down.
+- has_list: true only if a printed ingredient list is in the photo, usually under a heading such as Ingredients, Ingrédients, INCI, Zutaten, Active ingredients, or Inactive ingredients. A product name, claims, directions, or a box that highlights a few key ingredients is not an ingredient list.
+- legibility: "full" if you read every ingredient in the list, "partial" if some of it is blurred, cut off, or hidden, "none" if there's no list or you can't read it.
+- ingredients: one ingredient per item, in printed order, spelled as printed. A long name often wraps onto the next line, sometimes with a hyphen: join it into one item. Keep a bracketed name with its ingredient. Leave out headings, footnotes, and directions. Include both active and inactive ingredients, and every list if the pack has several. If the list is repeated in several languages, include it once, in English or INCI names.
+- brand and product: as printed on the pack, if you can see them, otherwise empty strings. The product is its full specific name, not its claims. If only a general type is visible, such as "foundation" or "face cream", use an empty string.`;
 
 const PRODUCT_PROMPT = `You identify beauty and personal care product names. Given text typed by a user, return the brand and the full official product name, with spelling corrected and common abbreviations expanded (e.g. TXA → Tranexamic Acid, HA → Hyaluronic Acid, BHA → Beta Hydroxy Acid, AHA → Alpha Hydroxy Acid, Vit C → Vitamin C). The name must include the brand. Do not add ingredients. If the text is not a beauty, skincare, or personal care product or brand, return empty strings.
 
@@ -105,15 +116,34 @@ function cleanIngredientName(name) {
     .trim();
 }
 
+// Positions of opening brackets that are never closed, so one missed bracket can't swallow the rest of a list.
+function unclosedBrackets(text) {
+  const open = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(' || text[i] === '[') open.push(i);
+    if (text[i] === ')' || text[i] === ']') open.pop();
+  }
+  return new Set(open);
+}
+
 function splitIngredients(text) {
   const items = [];
   let depth = 0;
   let current = '';
-  const body = text.replace(LIST_LABEL, '').replace(/\r/g, '');
-  for (const char of body.replace(/\n/g, ',')) {
-    if (char === '(' || char === '[') depth += 1;
+  const body = text
+    .replace(LIST_LABEL, '')
+    .replace(/\r/g, '')
+    .replace(/[,;.\s]*\b(in)?active ingredients?\s*:/gi, ',')
+    .replace(/[、，；]/g, ',')
+    .replace(/\n/g, ',');
+  const ignore = unclosedBrackets(body);
+  for (let i = 0; i < body.length; i++) {
+    const char = body[i];
+    if ((char === '(' || char === '[') && !ignore.has(i)) depth += 1;
     if (char === ')' || char === ']') depth = Math.max(0, depth - 1);
-    if ((char === ',' || char === ';' || char === '•' || char === '·' || char === '|') && depth === 0) {
+    // "1,2-Hexanediol" is one ingredient: a comma between numbers leading to a hyphen is part of the name.
+    const insideName = char === ',' && /\d$/.test(current) && /^\d+(,\d+)*-[a-z]/i.test(body.slice(i + 1));
+    if (',;•·|'.includes(char) && depth === 0 && !insideName) {
       items.push(current);
       current = '';
     } else {
@@ -121,7 +151,8 @@ function splitIngredients(text) {
     }
   }
   items.push(current);
-  return items.map(cleanIngredientName).filter((item) => item.length > 1).slice(0, MAX_INGREDIENTS);
+  const list = items.map(cleanIngredientName).filter((item) => item.length > 1);
+  return list.slice(0, MAX_INGREDIENTS);
 }
 
 function looksLikeList(text) {
@@ -142,7 +173,7 @@ function nameKey(name) {
 }
 
 const NOTE_HEADING = /^\s*(fragrance(, if present)?|silicones?( and pilling)?|oils that can feed fungal acne|anything commonly layered badly( with other products)?|layering)\s*[:\-–]\s*/i;
-const ABSENCE = /\b(no|not|isn't|aren't|doesn't|don't|without|none)\b[^.]*\b(listed|present|in (it|this|the list)|call(s)? out|obvious|included|separate)/i;
+const ABSENCE = /\b(no|not|isn't|aren't|doesn't|don't|without|none)\b[^.]*\b(listed|present|in (it|this|the list)|call(s)? out|obvious|included|separate|specified|mentioned)/i;
 
 // The model sometimes echoes the checklist headings or adds "nothing here" notes; keep only real, applicable notes.
 function tidyNotes(notes, ingredients) {
@@ -153,7 +184,7 @@ function tidyNotes(notes, ingredients) {
     .map((note) => note.replace(NOTE_HEADING, '').trim())
     .filter((note) => {
       const text = note.toLowerCase();
-      if (!note || ABSENCE.test(text)) return false;
+      if (!note || ABSENCE.test(text) || /not sure/.test(text)) return false;
       if (/fragrance|scent|parfum/.test(text) && !hasFragrance) return false;
       const key = text.replace(/[^a-z]/g, '').slice(0, 40);
       if (seen.has(key)) return false;
@@ -189,7 +220,8 @@ async function callOpenAI(apiKey, messages, { model, maxTokens, timeoutMs }) {
     response_format: { type: 'json_object' },
     messages,
   };
-  if (model.startsWith('gpt-5')) body.reasoning_effort = 'minimal';
+  if (model === 'gpt-5-nano') body.reasoning_effort = 'minimal';
+  if (model.startsWith('gpt-5.4')) body.reasoning_effort = 'none';
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -201,7 +233,10 @@ async function callOpenAI(apiKey, messages, { model, maxTokens, timeoutMs }) {
     signal: AbortSignal.timeout(timeoutMs),
   });
 
-  if (!response.ok) throw new Error(`openai_${response.status}`);
+  if (!response.ok) {
+    console.error('openai error', model, response.status, (await response.text()).slice(0, 200));
+    throw new Error(`openai_${response.status}`);
+  }
 
   const data = await response.json();
   const choice = data.choices && data.choices[0];
@@ -218,7 +253,7 @@ async function askAI(apiKey, ctx, messages, { maxTokens = 1200, models = [MODEL,
     const left = timeLeft(ctx) - 3000;
     if (left < 5000) break;
     try {
-      return await callOpenAI(apiKey, messages, { model, maxTokens: tokens, timeoutMs: Math.min(30000, left) });
+      return await callOpenAI(apiKey, typeof messages === 'function' ? messages(model) : messages, { model, maxTokens: tokens, timeoutMs: Math.min(30000, left) });
     } catch (err) {
       lastError = err;
       console.error(`ai call failed (${model}):`, err.message);
@@ -234,62 +269,131 @@ async function requestBreakdown(apiKey, ctx, ingredients, productName, models) {
     { role: 'system', content: SYSTEM_PROMPT },
     {
       role: 'user',
-      content: `Product name: ${productName || 'not given'}\nIngredient list: ${ingredients.join(', ')}`,
+      content: `Product name: ${productName || 'not given'}\nIngredients:\n${ingredients.map((name, i) => `${i + 1}. ${name}`).join('\n')}`,
     },
   ], { maxTokens: Math.min(8000, 1500 + ingredients.length * 90), models });
+
+  // Names come from the list, never from the model, so it can't invent or misspell an ingredient.
+  const used = new Set();
+  const pick = (items) => (Array.isArray(items) ? items : [])
+    .map((item) => Number(item))
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= ingredients.length && !used.has(n) && used.add(n))
+    .map((n) => ingredients[n - 1]);
 
   return {
     intro: String(parsed.intro || ''),
     groups: (Array.isArray(parsed.groups) ? parsed.groups : [])
-      .filter((group) => group && group.label && group.explanation && Array.isArray(group.ingredients))
+      .filter((group) => group && group.label && group.explanation)
       .slice(0, 14)
       .map((group) => ({
         label: String(group.label).slice(0, 80),
-        ingredients: group.ingredients.map((name) => String(name).slice(0, 100)).slice(0, 60),
+        ingredients: pick(group.items),
         explanation: String(group.explanation).slice(0, 600),
-      })),
+      }))
+      .filter((group) => group.ingredients.length > 0),
     worth_knowing: (Array.isArray(parsed.worth_knowing) ? parsed.worth_knowing : [])
       .map((note) => String(note).slice(0, 300))
       .slice(0, 8),
   };
 }
 
-function parsePhotoList(parsed) {
-  // The label's own commas are the reliable separators; the model only copies the text.
-  if (typeof parsed.list === 'string') {
-    const text = parsed.list.trim();
-    if (!text) return [];
-    const joined = /[,;•]/.test(text) ? text.replace(/\s*\n\s*/g, ' ') : text;
-    return splitIngredients(joined).filter((name) => name.length > 1).slice(0, MAX_INGREDIENTS);
-  }
-  const items = Array.isArray(parsed.ingredients) ? parsed.ingredients : (typeof parsed.ingredients === 'string' ? [parsed.ingredients] : []);
-  return items
-    .flatMap((item) => {
-      const text = String(item);
-      // Printed labels wrap long names onto the next line, so newlines only separate items when there are no commas.
-      if (/[,;•]/.test(text)) return splitIngredients(text.replace(/\s*\n\s*/g, ' '));
-      if (/\n/.test(text)) return splitIngredients(text);
-      return [cleanIngredientName(text)];
+function parsePhoto(parsed) {
+  const items = Array.isArray(parsed.ingredients) ? parsed.ingredients : [];
+  const seen = new Set();
+  const ingredients = items
+    .flatMap((item) => splitIngredients(String(item).replace(/\s*\n\s*/g, ' ')))
+    .filter((name) => {
+      const key = nameKey(name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     })
-    .filter((name) => name.length > 1)
     .slice(0, MAX_INGREDIENTS);
+  return {
+    turn: [90, 180, 270].includes(Number(parsed.turn)) ? Number(parsed.turn) : 0,
+    hasList: Boolean(parsed.has_list),
+    ingredients: parsed.has_list ? ingredients : [],
+    legibility: parsed.legibility,
+    brand: String(parsed.brand || '').trim().slice(0, 60),
+    product: String(parsed.product || '').trim().slice(0, 120),
+  };
 }
 
-async function readPhotoIngredients(apiKey, ctx, imageDataUrl) {
-  const messages = [
+function editDistance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const above = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return row[b.length];
+}
+
+function sameIngredient(a, b) {
+  const close = (x, y) => x === y || editDistance(x, y) / Math.max(x.length, y.length) <= 0.12;
+  const bare = (name) => nameKey(name.replace(/[([].*$/, ''));
+  return close(nameKey(a), nameKey(b)) || (bare(a).length >= 4 && close(bare(a), bare(b)));
+}
+
+// A word the model made up rarely comes out the same twice, so only ingredients seen in both readings are kept.
+function agreeOn(first, second) {
+  const ingredients = first.ingredients.filter((a) => second.ingredients.some((b) => sameIngredient(a, b)));
+  const longest = Math.max(first.ingredients.length, second.ingredients.length);
+  const agreement = longest ? ingredients.length / longest : 1;
+  if (agreement < 0.6) return { ...first, hasList: true, ingredients: [], legibility: 'none' };
+  const complete = agreement >= 0.9 && first.legibility === 'full' && second.legibility === 'full';
+  return { ...first, hasList: first.hasList || second.hasList, ingredients, legibility: complete ? 'full' : 'partial' };
+}
+
+async function readPhoto(apiKey, ctx, imageDataUrl) {
+  const messagesFor = (model) => [
     { role: 'system', content: PHOTO_PROMPT },
     {
       role: 'user',
-      content: [{ type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }],
+      content: [{ type: 'image_url', image_url: { url: imageDataUrl, detail: model.startsWith('gpt-5.4') ? 'original' : 'high' } }],
     },
   ];
-  const first = parsePhotoList(await askAI(apiKey, ctx, messages, { maxTokens: 4000, models: [MODEL, MODEL, FALLBACK_MODEL] }));
-  if (first.length > 0) return first;
-  try {
-    return parsePhotoList(await askAI(apiKey, ctx, messages, { maxTokens: 4000, models: [FALLBACK_MODEL] }));
-  } catch {
-    return [];
+  const read = async () => parsePhoto(await askAI(apiKey, ctx, messagesFor, { maxTokens: 4000, models: PHOTO_MODELS }));
+  const [first, second] = await Promise.allSettled([read(), read()]);
+  if (first.status === 'rejected' && second.status === 'rejected') throw first.reason;
+  if (first.status === 'rejected') return second.value;
+  if (second.status === 'rejected') return first.value;
+  return { ...agreeOn(first.value, second.value), turn: first.value.turn || second.value.turn };
+}
+
+async function findProduct(apiKey, ctx, name) {
+  const product = await lookupProduct(name);
+  if (product && product.ingredients.length > 2) return { ingredients: product.ingredients, productName: product.name, source: 'product' };
+  const found = await searchProductIngredients(apiKey, ctx, name);
+  if (found && found.length > 2) return { ingredients: found, productName: name, source: 'web' };
+  return null;
+}
+
+async function decodePhoto(apiKey, ctx, imageDataUrl, timesTurned) {
+  const photo = await readPhoto(apiKey, ctx, imageDataUrl);
+  // The model misreads sideways text, so the page turns the photo upright and sends it again.
+  if (photo.turn && photo.hasList && timesTurned < 2) return json({ turn: photo.turn });
+  const complete = photo.legibility === 'full' && photo.ingredients.length > 0;
+  if (complete || photo.ingredients.length >= 5) {
+    return breakdownResponse(apiKey, ctx, {
+      ingredients: photo.ingredients, productName: '', source: 'photo',
+      note: complete ? '' : 'part of this label was hard to read, so some ingredients may be missing. a closer photo will show the rest.',
+    });
   }
+
+  // No readable list, so this is usually the front of a product. A brand alone is too vague to look up.
+  // A list that is there but unreadable needs a closer photo, not a lookalike product.
+  if (!photo.hasList && photo.brand && photo.product) {
+    const name = photo.product.toLowerCase().includes(photo.brand.toLowerCase()) ? photo.product : `${photo.brand} ${photo.product}`;
+    const product = await findProduct(apiKey, ctx, name);
+    if (product) return breakdownResponse(apiKey, ctx, product);
+    return json({ error: `this looks like ${name}, but i can't see its ingredient list. try a photo of the back, where the ingredients are printed.` }, 422);
+  }
+  return json({ error: "i couldn't read an ingredient list in this photo. hold the camera closer, keep it steady, and fill the frame with the list." }, 422);
 }
 
 async function explainSingleIngredient(apiKey, ctx, text) {
@@ -432,7 +536,7 @@ function sampleBreakdown(ingredients) {
   };
 }
 
-async function breakdownResponse(apiKey, ctx, { ingredients, productName, source }) {
+async function breakdownResponse(apiKey, ctx, { ingredients, productName, source, note }) {
   const meta = { mode: 'list', source, productName, ingredientCount: ingredients.length, caveat: CAVEAT };
 
   if (!apiKey) {
@@ -444,8 +548,11 @@ async function breakdownResponse(apiKey, ctx, { ingredients, productName, source
   const raw = await requestBreakdown(apiKey, ctx, ingredients, productName);
   let breakdown = cleanBreakdown(raw);
 
-  const covered = new Set(breakdown.groups.flatMap((group) => group.ingredients.map(nameKey)));
-  const missing = ingredients.filter((name) => !covered.has(nameKey(name)));
+  const missingFrom = (groups) => {
+    const covered = new Set(groups.flatMap((group) => group.ingredients.map(nameKey)));
+    return ingredients.filter((name) => !covered.has(nameKey(name)));
+  };
+  const missing = missingFrom(breakdown.groups);
   if (missing.length > 0 && missing.length < ingredients.length && timeLeft(ctx) > 20000) {
     try {
       const retry = await requestBreakdown(apiKey, ctx, missing, productName, [MODEL, FALLBACK_MODEL]);
@@ -458,8 +565,14 @@ async function breakdownResponse(apiKey, ctx, { ingredients, productName, source
     breakdown = cleanBreakdown(await requestBreakdown(apiKey, ctx, ingredients, productName, [FALLBACK_MODEL]));
     if (breakdown.groups.length === 0) throw new Error('empty');
   }
+  const leftOver = missingFrom(breakdown.groups);
+  if (leftOver.length > 0) {
+    breakdown.groups.push({ label: 'also in there', ingredients: leftOver, explanation: "i'm not sure about these." });
+  }
   breakdown.worth_knowing = tidyNotes(breakdown.worth_knowing, ingredients);
-  breakdown.worth_knowing.push(...labelNotes(ingredients));
+  // With part of the list unread, "no parabens in this list" could be wrong.
+  breakdown.worth_knowing.push(...(note ? [] : labelNotes(ingredients)));
+  if (note) breakdown.worth_knowing.unshift(note);
   return json({ demo: false, ...meta, ...breakdown });
 }
 
@@ -519,11 +632,7 @@ export async function onRequestPost({ request, env }) {
   try {
     if (image) {
       if (!apiKey) return json({ error: 'Photo reading is available once the openai key is connected.' }, 503);
-      const ingredients = await readPhotoIngredients(apiKey, ctx, image);
-      if (ingredients.length === 0) {
-        return json({ error: "i couldn't find an ingredient list in this photo. try a closer photo of the list." }, 422);
-      }
-      return await breakdownResponse(apiKey, ctx, { ingredients, productName: '', source: 'photo' });
+      return await decodePhoto(apiKey, ctx, image, Number(payload.turned) || 0);
     }
 
     if (looksLikeList(text)) {
